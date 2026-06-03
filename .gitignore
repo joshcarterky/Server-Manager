@@ -1,0 +1,25 @@
+# Build outputs
+**/bin/
+**/obj/
+src/publish/
+
+# Extracted release folders and local runtime state
+release/Server Manager*/
+release/*.zip
+**/logs/
+**/Data/
+**/servers/
+*.pdb
+*.db
+
+# User/local configuration
+asa-config.json
+appsettings.Development.json
+*.user
+*.suo
+.vs/
+
+# OS/editor noise
+Thumbs.db
+Desktop.ini
+.vscode/

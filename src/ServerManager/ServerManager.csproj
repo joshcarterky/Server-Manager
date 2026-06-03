@@ -1,0 +1,145 @@
+<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
+  <PropertyGroup>
+    <AssemblyName>ServerManager</AssemblyName>
+    <GenerateAssemblyInfo>False</GenerateAssemblyInfo>
+    <OutputType>WinExe</OutputType>
+    <UseWPF>True</UseWPF>
+    <UseWindowsForms>True</UseWindowsForms>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <ApplicationIcon>assets\app\server-manager.ico</ApplicationIcon>
+  </PropertyGroup>
+  <PropertyGroup>
+    <LangVersion>11.0</LangVersion>
+    <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <PropertyGroup>
+    <RootNamespace />
+  </PropertyGroup>
+  <ItemGroup>
+    <None Remove="views\curseforgebrowserwindow.baml" />
+    <None Remove="views\serversview.baml" />
+    <None Remove="assets\maps\scorchedearth.png" />
+    <None Remove="assets\maps\ragnarok.png" />
+    <None Remove="assets\maps\genesis2.png" />
+    <None Remove="views\clustersview.baml" />
+    <None Remove="views\inieditorwindow.baml" />
+    <None Remove="assets\maps\extinction.png" />
+    <None Remove="views\modsview.baml" />
+    <None Remove="views\topdownloadswindow.baml" />
+    <None Remove="views\consoleview.baml" />
+    <None Remove="assets\maps\genesis.png" />
+    <None Remove="views\placeholdermoduleview.baml" />
+    <None Remove="views\settingsview.baml" />
+    <None Remove="views\schedulerview.baml" />
+    <None Remove="assets\maps\valguero.png" />
+    <None Remove="views\dashboardview.baml" />
+    <None Remove="assets\maps\crystalisles.png" />
+    <None Remove="mainwindow.baml" />
+    <None Remove="assets\maps\aberration.png" />
+    <None Remove="assets\maps\thecenter.png" />
+    <None Remove="resources\theme.baml" />
+    <None Remove="app.baml" />
+    <None Remove="views\backupsview.baml" />
+    <None Remove="assets\maps\lostisland.png" />
+    <None Remove="assets\maps\fjordur.png" />
+    <None Remove="assets\maps\theisland.png" />
+    <None Remove="assets\app\server-manager.png" />
+    <Resource Include="views\curseforgebrowserwindow.baml" LogicalName="views/curseforgebrowserwindow.baml" />
+    <Resource Include="views\serversview.baml" LogicalName="views/serversview.baml" />
+    <Resource Include="assets\maps\scorchedearth.png" LogicalName="assets/maps/scorchedearth.png" />
+    <Resource Include="assets\maps\ragnarok.png" LogicalName="assets/maps/ragnarok.png" />
+    <Resource Include="assets\maps\genesis2.png" LogicalName="assets/maps/genesis2.png" />
+    <Resource Include="views\clustersview.baml" LogicalName="views/clustersview.baml" />
+    <Resource Include="views\inieditorwindow.baml" LogicalName="views/inieditorwindow.baml" />
+    <Resource Include="assets\maps\extinction.png" LogicalName="assets/maps/extinction.png" />
+    <Resource Include="views\modsview.baml" LogicalName="views/modsview.baml" />
+    <Resource Include="views\topdownloadswindow.baml" LogicalName="views/topdownloadswindow.baml" />
+    <Resource Include="views\consoleview.baml" LogicalName="views/consoleview.baml" />
+    <Resource Include="assets\maps\genesis.png" LogicalName="assets/maps/genesis.png" />
+    <Resource Include="views\placeholdermoduleview.baml" LogicalName="views/placeholdermoduleview.baml" />
+    <Resource Include="views\settingsview.baml" LogicalName="views/settingsview.baml" />
+    <Resource Include="views\schedulerview.baml" LogicalName="views/schedulerview.baml" />
+    <Resource Include="assets\maps\valguero.png" LogicalName="assets/maps/valguero.png" />
+    <Resource Include="views\dashboardview.baml" LogicalName="views/dashboardview.baml" />
+    <Resource Include="assets\maps\crystalisles.png" LogicalName="assets/maps/crystalisles.png" />
+    <Resource Include="mainwindow.baml" LogicalName="mainwindow.baml" />
+    <Resource Include="assets\maps\aberration.png" LogicalName="assets/maps/aberration.png" />
+    <Resource Include="assets\maps\thecenter.png" LogicalName="assets/maps/thecenter.png" />
+    <Resource Include="resources\theme.baml" LogicalName="resources/theme.baml" />
+    <Resource Include="app.baml" LogicalName="app.baml" />
+    <Resource Include="views\backupsview.baml" LogicalName="views/backupsview.baml" />
+    <Resource Include="assets\maps\lostisland.png" LogicalName="assets/maps/lostisland.png" />
+    <Resource Include="assets\maps\fjordur.png" LogicalName="assets/maps/fjordur.png" />
+    <Resource Include="assets\maps\theisland.png" LogicalName="assets/maps/theisland.png" />
+    <Resource Include="assets\app\server-manager.png" LogicalName="assets/app/server-manager.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="Microsoft.Extensions.Hosting.Abstractions">
+      <HintPath>../publish/Microsoft.Extensions.Hosting.Abstractions.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Extensions.Configuration.Abstractions">
+      <HintPath>../publish/Microsoft.Extensions.Configuration.Abstractions.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Extensions.DependencyInjection.Abstractions">
+      <HintPath>../publish/Microsoft.Extensions.DependencyInjection.Abstractions.dll</HintPath>
+    </Reference>
+    <Reference Include="Serilog">
+      <HintPath>../publish/Serilog.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Web.WebView2.Wpf">
+      <HintPath>../publish/Microsoft.Web.WebView2.Wpf.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Web.WebView2.Core">
+      <HintPath>../publish/Microsoft.Web.WebView2.Core.dll</HintPath>
+    </Reference>
+    <Reference Include="CommunityToolkit.Mvvm">
+      <HintPath>../publish/CommunityToolkit.Mvvm.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Extensions.Http">
+      <HintPath>../publish/Microsoft.Extensions.Http.dll</HintPath>
+    </Reference>
+    <Reference Include="Newtonsoft.Json">
+      <HintPath>../publish/Newtonsoft.Json.dll</HintPath>
+    </Reference>
+    <Reference Include="NCrontab.Signed">
+      <HintPath>../publish/NCrontab.Signed.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Extensions.Configuration.FileExtensions">
+      <HintPath>../publish/Microsoft.Extensions.Configuration.FileExtensions.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Extensions.Configuration.Json">
+      <HintPath>../publish/Microsoft.Extensions.Configuration.Json.dll</HintPath>
+    </Reference>
+    <Reference Include="Serilog.Sinks.File">
+      <HintPath>../publish/Serilog.Sinks.File.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Extensions.Hosting">
+      <HintPath>../publish/Microsoft.Extensions.Hosting.dll</HintPath>
+    </Reference>
+    <Reference Include="Serilog.Sinks.Async">
+      <HintPath>../publish/Serilog.Sinks.Async.dll</HintPath>
+    </Reference>
+    <Reference Include="Serilog.Extensions.Hosting">
+      <HintPath>../publish/Serilog.Extensions.Hosting.dll</HintPath>
+    </Reference>
+    <Reference Include="Serilog.Extensions.Logging">
+      <HintPath>../publish/Serilog.Extensions.Logging.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2592.51" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.0" />
+    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="2.1.6" />
+  </ItemGroup>
+  <Target Name="CopySqliteNativeToPublish" AfterTargets="Publish">
+    <Copy SourceFiles="$(OutputPath)e_sqlite3.dll"
+          DestinationFolder="$(PublishDir)"
+          Condition="Exists('$(OutputPath)e_sqlite3.dll')" />
+  </Target>
+  <Target Name="CopyWebView2LoaderToPublish" AfterTargets="Publish">
+    <Copy SourceFiles="$(NuGetPackageRoot)microsoft.web.webview2\1.0.2592.51\runtimes\win-x64\native\WebView2Loader.dll"
+          DestinationFolder="$(PublishDir)"
+          Condition="Exists('$(NuGetPackageRoot)microsoft.web.webview2\1.0.2592.51\runtimes\win-x64\native\WebView2Loader.dll')" />
+  </Target>
+</Project>
+
