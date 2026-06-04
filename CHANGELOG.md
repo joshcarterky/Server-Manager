@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.0.20 - 2026-06-04
+
+- Stopped raw ASA stdout and stderr log spam from appearing in the RCON console.
+- Kept server process output in the application logs for troubleshooting.
+
 ## 2.0.19 - 2026-06-04
 
 - Reloaded `GameUserSettings.ini` immediately before server start so manual MaxPlayers edits are not overwritten by stale app values.

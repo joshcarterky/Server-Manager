@@ -154,7 +154,6 @@ public class ServerProcessManager : IServerProcessManager
 				if (!string.IsNullOrWhiteSpace(args.Data))
 				{
 					_loggingService.Logger.Information("[{Server}] {Output}", server2.Name, args.Data);
-					_serverConsoleService.AddLine(server2, args.Data);
 				}
 			};
 			process.ErrorDataReceived += delegate(object _, DataReceivedEventArgs args)
@@ -162,7 +161,6 @@ public class ServerProcessManager : IServerProcessManager
 				if (!string.IsNullOrWhiteSpace(args.Data))
 				{
 					_loggingService.Logger.Warning("[{Server}] {Output}", server2.Name, args.Data);
-					_serverConsoleService.AddLine(server2, "[stderr] " + args.Data);
 				}
 			};
 			process.Exited += delegate
