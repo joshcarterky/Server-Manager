@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.0.24 - 2026-06-04
+
+- Made `GameUserSettings.ini` the source of truth for MaxPlayers when starting from the Servers tab.
+- Removed stale `-MaxPlayers` launch arguments so the INI value is not overridden during server start.
+
 ## 2.0.23 - 2026-06-04
 
 - Refreshed the Templates tab with header stats, accented template cards, rate chips, and feature chips.

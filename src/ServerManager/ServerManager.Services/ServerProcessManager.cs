@@ -398,7 +398,6 @@ public class ServerProcessManager : IServerProcessManager
 			$"-RCONPort={server.RconPort}",
 			"-RCONEnabled=" + (server.Config.UseRcon ? "True" : "False"),
 			"-ServerAdminPassword=" + rconPassword,
-			$"-MaxPlayers={server.MaxPlayers}",
 			"-Crossplay=" + (server.CrossplayEnabled ? "true" : "false")
 		};
 		if (!server.BattleEyeEnabled || !server.Config.UseBattleEye)
@@ -520,7 +519,7 @@ public class ServerProcessManager : IServerProcessManager
 		File.WriteAllLines(settingsPath, lines);
 	}
 
-	private static void HydrateManagedIniValues(ServerInstance server)
+	public void HydrateManagedIniValues(ServerInstance server)
 	{
 		string settingsPath = Path.Combine(server.InstallDirectory, "ShooterGame", "Saved", "Config", "WindowsServer", "GameUserSettings.ini");
 		if (!File.Exists(settingsPath))
@@ -615,7 +614,7 @@ public class ServerProcessManager : IServerProcessManager
 
 	private static void UpsertIniValue(List<string> lines, string section, string key, string value)
 	{
-		string sectionHeader = "[" + section + "]";
+		string sectionHeader = NormalizeIniSectionHeader(section);
 		int sectionIndex = lines.FindIndex((string line) => string.Equals(line.Trim(), sectionHeader, StringComparison.OrdinalIgnoreCase));
 		if (sectionIndex < 0)
 		{
@@ -641,6 +640,16 @@ public class ServerProcessManager : IServerProcessManager
 		lines.Insert(searchEnd, key + "=" + value);
 	}
 
+	private static string NormalizeIniSectionHeader(string section)
+	{
+		string trimmed = (section ?? string.Empty).Trim();
+		if (trimmed.StartsWith("[", StringComparison.Ordinal) && trimmed.EndsWith("]", StringComparison.Ordinal))
+		{
+			return trimmed;
+		}
+		return "[" + trimmed.Trim('[', ']') + "]";
+	}
+
 	private static string RemoveManagedLaunchArguments(string launchParameters)
 	{
 		if (string.IsNullOrWhiteSpace(launchParameters))
@@ -648,7 +657,7 @@ public class ServerProcessManager : IServerProcessManager
 			return string.Empty;
 		}
 		IEnumerable<string> values = from part in launchParameters.Split(' ', StringSplitOptions.RemoveEmptyEntries)
-			where !part.StartsWith("-clusterid=", StringComparison.OrdinalIgnoreCase) && !part.StartsWith("-ClusterDirOverride=", StringComparison.OrdinalIgnoreCase) && !part.Equals("-NoTransferFromFiltering", StringComparison.OrdinalIgnoreCase) && !part.Equals("-NoBattlEye", StringComparison.OrdinalIgnoreCase) && !part.Equals("-NoBattleEye", StringComparison.OrdinalIgnoreCase) && !part.Equals("-log", StringComparison.OrdinalIgnoreCase) && !part.Equals("-NoLogWindow", StringComparison.OrdinalIgnoreCase) && !part.Equals("-stdout", StringComparison.OrdinalIgnoreCase) && !part.Equals("-FullStdOutLogOutput", StringComparison.OrdinalIgnoreCase)
+			where !part.StartsWith("-clusterid=", StringComparison.OrdinalIgnoreCase) && !part.StartsWith("-ClusterDirOverride=", StringComparison.OrdinalIgnoreCase) && !part.StartsWith("-MaxPlayers=", StringComparison.OrdinalIgnoreCase) && !part.Equals("-NoTransferFromFiltering", StringComparison.OrdinalIgnoreCase) && !part.Equals("-NoBattlEye", StringComparison.OrdinalIgnoreCase) && !part.Equals("-NoBattleEye", StringComparison.OrdinalIgnoreCase) && !part.Equals("-log", StringComparison.OrdinalIgnoreCase) && !part.Equals("-NoLogWindow", StringComparison.OrdinalIgnoreCase) && !part.Equals("-stdout", StringComparison.OrdinalIgnoreCase) && !part.Equals("-FullStdOutLogOutput", StringComparison.OrdinalIgnoreCase)
 			select part;
 		return string.Join(' ', values);
 	}

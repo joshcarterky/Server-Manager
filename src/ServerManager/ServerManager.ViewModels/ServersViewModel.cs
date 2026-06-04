@@ -116,6 +116,7 @@ public class ServersViewModel : ObservableObject
 	{
 		if (SelectedServer != null)
 		{
+			_serverProcessManager.HydrateManagedIniValues(SelectedServer);
 			NormalizeServerSettings(SelectedServer);
 			await _configService.SaveAsync(_appConfig).ConfigureAwait(continueOnCapturedContext: false);
 			_serverProcessManager.AddServer(SelectedServer);
@@ -137,6 +138,9 @@ public class ServersViewModel : ObservableObject
 	{
 		if (SelectedServer != null)
 		{
+			_serverProcessManager.HydrateManagedIniValues(SelectedServer);
+			NormalizeServerSettings(SelectedServer);
+			await _configService.SaveAsync(_appConfig).ConfigureAwait(continueOnCapturedContext: false);
 			await _serverProcessManager.RestartServerAsync(SelectedServer).ConfigureAwait(continueOnCapturedContext: false);
 			_loggingService.Logger.Information("Auto-connecting RCON console for restarted server {ServerName}", SelectedServer.Name);
 			_ = _consoleViewModel.ConnectToServerAsync(SelectedServer, showErrorDialog: false, retryCount: 24, retryDelayMs: 5000);

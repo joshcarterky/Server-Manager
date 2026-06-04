@@ -14,6 +14,8 @@ public interface IServerProcessManager
 
 	void RemoveServer(ServerInstance server);
 
+	void HydrateManagedIniValues(ServerInstance server);
+
 	Task StartServerAsync(ServerInstance server);
 
 	Task StopServerAsync(ServerInstance server);
