@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.0.19 - 2026-06-04
+
+- Reloaded `GameUserSettings.ini` immediately before server start so manual MaxPlayers edits are not overwritten by stale app values.
+- Loaded `ActiveMods` from `GameUserSettings.ini` into the Configure Server Mods load-order list.
+- Used INI MaxPlayers and ActiveMods values even when they appear outside the built-in catalog section.
+
 ## 2.0.18 - 2026-06-04
 
 - Fixed the Configure Server Mods tab so the bottom Server Load Order section can be reached on shorter windows.

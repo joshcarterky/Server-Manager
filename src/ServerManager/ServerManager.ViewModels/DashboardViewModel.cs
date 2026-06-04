@@ -210,6 +210,7 @@ public class DashboardViewModel : ObservableObject
 			SyncSelectedServerMods();
 			SyncIniSettingsFromSelectedServer();
 			ReloadIniSettingsFromSelectedServerFiles();
+			SyncSelectedServerMods();
 			SaveServerCommand.NotifyCanExecuteChanged();
 			StartServerCommand.NotifyCanExecuteChanged();
 			StopServerCommand.NotifyCanExecuteChanged();
@@ -697,8 +698,10 @@ public class DashboardViewModel : ObservableObject
 		}
 		try
 		{
-			NormalizeServerSettings(SelectedServer);
+			ReloadIniSettingsFromSelectedServerFiles();
 			ApplyIniSettingsToSelectedServer();
+			SyncSelectedServerMods();
+			NormalizeServerSettings(SelectedServer);
 			ApplyDefaultDirectories(SelectedServer);
 			SaveIniSettingsToSelectedServerFiles();
 			await _configService.SaveAsync(_appConfig);
@@ -1083,7 +1086,7 @@ public class DashboardViewModel : ObservableObject
 			Dictionary<string, Dictionary<string, string>> values = ReadIniFile(iniPath);
 			foreach (IniSettingViewModel setting in group)
 			{
-				if (values.TryGetValue(setting.Section, out Dictionary<string, string>? sectionValues) && sectionValues.TryGetValue(setting.VariableName, out string? value))
+				if (TryGetIniSettingValue(values, setting, out string? value))
 				{
 					setting.Value = value;
 					updatedCount++;
@@ -1091,6 +1094,7 @@ public class DashboardViewModel : ObservableObject
 			}
 		}
 		ApplyIniSettingsToSelectedServer();
+		SyncSelectedServerMods();
 		NormalizeServerSettings(SelectedServer);
 		RefreshSelectedServerBindings();
 		return updatedCount;
@@ -1605,6 +1609,7 @@ public class DashboardViewModel : ObservableObject
 			{
 				SelectedServer.MaxPlayers = result4;
 			}
+			ApplyActiveModsIniValueToSelectedServer();
 			if (double.TryParse(GetIniValue("DifficultyOffset", SelectedServer.DifficultyOffset.ToString()), out var result5))
 			{
 				SelectedServer.DifficultyOffset = result5;
@@ -1647,6 +1652,46 @@ public class DashboardViewModel : ObservableObject
 		}
 	}
 
+	private void ApplyActiveModsIniValueToSelectedServer()
+	{
+		if (SelectedServer == null)
+		{
+			return;
+		}
+		string activeMods = GetIniValue("ActiveMods", string.Empty);
+		List<string> modIds = activeMods
+			.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
+			.Select((string value) => value.Trim())
+			.Where((string value) => !string.IsNullOrWhiteSpace(value))
+			.Distinct(StringComparer.OrdinalIgnoreCase)
+			.ToList();
+		if (modIds.Count == 0)
+		{
+			return;
+		}
+		Dictionary<string, ModEntry> existingMods = SelectedServer.Mods
+			.Where((ModEntry mod) => !string.IsNullOrWhiteSpace(mod.WorkshopId))
+			.GroupBy((ModEntry mod) => mod.WorkshopId, StringComparer.OrdinalIgnoreCase)
+			.ToDictionary((IGrouping<string, ModEntry> group) => group.Key, (IGrouping<string, ModEntry> group) => group.First(), StringComparer.OrdinalIgnoreCase);
+		List<ModEntry> mods = new List<ModEntry>();
+		for (int i = 0; i < modIds.Count; i++)
+		{
+			string modId = modIds[i];
+			if (!existingMods.TryGetValue(modId, out ModEntry? mod))
+			{
+				mod = new ModEntry
+				{
+					Title = "CurseForge Mod " + modId,
+					WorkshopId = modId
+				};
+			}
+			mod.LoadOrder = i + 1;
+			mods.Add(mod);
+		}
+		SelectedServer.Mods = mods;
+		ApplyModLaunchArguments(SelectedServer);
+	}
+
 	private void RefreshSelectedServerBindings()
 	{
 		OnPropertyChanged("SelectedServer");
@@ -1680,6 +1725,28 @@ public class DashboardViewModel : ObservableObject
 			return fallback;
 		}
 		return iniValue;
+	}
+
+	private static bool TryGetIniSettingValue(Dictionary<string, Dictionary<string, string>> values, IniSettingViewModel setting, out string? value)
+	{
+		value = null;
+		if (values.TryGetValue(setting.Section, out Dictionary<string, string>? sectionValues) && sectionValues.TryGetValue(setting.VariableName, out value))
+		{
+			return true;
+		}
+		if (!string.Equals(setting.VariableName, "MaxPlayers", StringComparison.OrdinalIgnoreCase)
+			&& !string.Equals(setting.VariableName, "ActiveMods", StringComparison.OrdinalIgnoreCase))
+		{
+			return false;
+		}
+		foreach (Dictionary<string, string> candidateSection in values.Values)
+		{
+			if (candidateSection.TryGetValue(setting.VariableName, out value))
+			{
+				return true;
+			}
+		}
+		return false;
 	}
 
 	private static bool ParseBool(string value, bool fallback)

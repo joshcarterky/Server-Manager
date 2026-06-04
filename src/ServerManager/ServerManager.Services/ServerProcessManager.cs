@@ -131,6 +131,7 @@ public class ServerProcessManager : IServerProcessManager
 			{
 				FileHelpers.EnsureDirectory(server2.ClusterDirectory);
 			}
+			HydrateManagedIniValues(server2);
 			EnsureRconConfiguration(server2);
 			string arguments = BuildLaunchArguments(server2);
 			ProcessStartInfo startInfo = new ProcessStartInfo(fileName, arguments)
@@ -519,6 +520,99 @@ public class ServerProcessManager : IServerProcessManager
 		UpsertIniValue(lines, "ServerSettings", "ServerAdminPassword", password);
 		UpsertIniValue(lines, "/Script/Engine.GameSession", "MaxPlayers", server.MaxPlayers.ToString());
 		File.WriteAllLines(settingsPath, lines);
+	}
+
+	private static void HydrateManagedIniValues(ServerInstance server)
+	{
+		string settingsPath = Path.Combine(server.InstallDirectory, "ShooterGame", "Saved", "Config", "WindowsServer", "GameUserSettings.ini");
+		if (!File.Exists(settingsPath))
+		{
+			return;
+		}
+		Dictionary<string, Dictionary<string, string>> values = ReadIniFile(settingsPath);
+		if (TryGetIniValue(values, "MaxPlayers", out string? maxPlayersValue) && int.TryParse(maxPlayersValue, out int maxPlayers))
+		{
+			server.MaxPlayers = maxPlayers;
+			server.Config.MaxPlayers = maxPlayers;
+		}
+		if (TryGetIniValue(values, "ActiveMods", out string? activeMods))
+		{
+			List<string> modIds = activeMods
+				.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
+				.Select((string value) => value.Trim())
+				.Where((string value) => !string.IsNullOrWhiteSpace(value))
+				.Distinct(StringComparer.OrdinalIgnoreCase)
+				.ToList();
+			if (modIds.Count > 0)
+			{
+				Dictionary<string, ModEntry> existingMods = server.Mods
+					.Where((ModEntry mod) => !string.IsNullOrWhiteSpace(mod.WorkshopId))
+					.GroupBy((ModEntry mod) => mod.WorkshopId, StringComparer.OrdinalIgnoreCase)
+					.ToDictionary((IGrouping<string, ModEntry> group) => group.Key, (IGrouping<string, ModEntry> group) => group.First(), StringComparer.OrdinalIgnoreCase);
+				List<ModEntry> mods = new List<ModEntry>();
+				for (int i = 0; i < modIds.Count; i++)
+				{
+					string modId = modIds[i];
+					if (!existingMods.TryGetValue(modId, out ModEntry? mod))
+					{
+						mod = new ModEntry
+						{
+							Title = "CurseForge Mod " + modId,
+							WorkshopId = modId
+						};
+					}
+					mod.LoadOrder = i + 1;
+					mods.Add(mod);
+				}
+				server.Mods = mods;
+			}
+		}
+	}
+
+	private static Dictionary<string, Dictionary<string, string>> ReadIniFile(string path)
+	{
+		Dictionary<string, Dictionary<string, string>> sections = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
+		string currentSection = string.Empty;
+		sections[currentSection] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+		foreach (string rawLine in File.ReadLines(path))
+		{
+			string line = rawLine.Trim();
+			if (string.IsNullOrWhiteSpace(line) || line.StartsWith(";", StringComparison.Ordinal) || line.StartsWith("#", StringComparison.Ordinal))
+			{
+				continue;
+			}
+			if (line.StartsWith("[", StringComparison.Ordinal) && line.EndsWith("]", StringComparison.Ordinal))
+			{
+				currentSection = line;
+				if (!sections.ContainsKey(currentSection))
+				{
+					sections[currentSection] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+				}
+				continue;
+			}
+			int equalsIndex = line.IndexOf('=');
+			if (equalsIndex <= 0)
+			{
+				continue;
+			}
+			string key = line.Substring(0, equalsIndex).Trim();
+			string value = line.Substring(equalsIndex + 1).Trim();
+			sections[currentSection][key] = value;
+		}
+		return sections;
+	}
+
+	private static bool TryGetIniValue(Dictionary<string, Dictionary<string, string>> values, string key, out string? value)
+	{
+		foreach (Dictionary<string, string> sectionValues in values.Values)
+		{
+			if (sectionValues.TryGetValue(key, out value))
+			{
+				return true;
+			}
+		}
+		value = null;
+		return false;
 	}
 
 	private static void UpsertIniValue(List<string> lines, string section, string key, string value)
