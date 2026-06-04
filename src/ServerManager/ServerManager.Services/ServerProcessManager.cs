@@ -126,12 +126,13 @@ public class ServerProcessManager : IServerProcessManager
 		}
 		if (!_processes.ContainsKey(server2.Id) || !_processes[server2.Id].IsRunning)
 		{
+			HydrateManagedIniValues(server2);
 			FileHelpers.EnsureDirectory(server2.InstallDirectory);
 			if (!string.IsNullOrWhiteSpace(server2.ClusterId) && !string.IsNullOrWhiteSpace(server2.ClusterDirectory))
 			{
 				FileHelpers.EnsureDirectory(server2.ClusterDirectory);
+				_serverConsoleService.AddLine(server2, $"Using cluster '{server2.ClusterId}' at '{server2.ClusterDirectory}'.");
 			}
-			HydrateManagedIniValues(server2);
 			EnsureRconConfiguration(server2);
 			string arguments = BuildLaunchArguments(server2);
 			ProcessStartInfo startInfo = new ProcessStartInfo(fileName, arguments)

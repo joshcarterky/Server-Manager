@@ -81,7 +81,7 @@ public class ServersViewModel : ObservableObject
 
 	private static string DefaultServerInstallDirectory => Path.Combine(AppContext.BaseDirectory, "servers");
 
-	private static string DefaultClusterDirectory => Path.Combine(AppContext.BaseDirectory, "clusters", "default");
+	private static string DefaultClusterDirectory => DashboardViewModel.DefaultClusterDirectory;
 
 	public ServersViewModel(IServerProcessManager serverProcessManager, IConfigService configService, ILoggingService loggingService, ConsoleViewModel consoleViewModel)
 	{
@@ -245,6 +245,12 @@ public class ServersViewModel : ObservableObject
 		server.Config.AdminPassword = server.AdminPassword;
 		server.Config.MaxPlayers = server.MaxPlayers;
 		server.Config.ClusterId = server.ClusterId;
+		if (string.IsNullOrWhiteSpace(server.ClusterDirectory) || (!string.IsNullOrWhiteSpace(server.ClusterId) && string.Equals(NormalizeDirectoryPath(server.ClusterDirectory), NormalizeDirectoryPath(DefaultClusterDirectory), StringComparison.OrdinalIgnoreCase)))
+		{
+			server.ClusterDirectory = DashboardViewModel.GetDefaultClusterDirectory(server.ClusterId);
+		}
+		server.Config.ClusterDirectory = server.ClusterDirectory;
+		server.Config.NoTransferFromFiltering = server.NoTransferFromFiltering;
 		server.Config.CrossplayEnabled = server.CrossplayEnabled;
 		server.Config.UseBattleEye = server.BattleEyeEnabled;
 	}
@@ -270,7 +276,7 @@ public class ServersViewModel : ObservableObject
 			AppId = profile.SteamAppId,
 			ExecutableName = profile.DefaultExecutableName,
 			InstallDirectory = GetDefaultServerInstallDirectory(cleanServerName),
-			ClusterDirectory = DefaultClusterDirectory,
+			ClusterDirectory = DashboardViewModel.GetDefaultClusterDirectory(string.Empty),
 			MapName = (MapNames.FirstOrDefault() ?? "TheIsland_WP")
 		};
 		NormalizeServerSettings(serverInstance);

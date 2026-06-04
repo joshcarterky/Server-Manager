@@ -249,7 +249,13 @@ public class DashboardViewModel : ObservableObject
 
 	private static string DefaultServerInstallDirectory => Path.Combine(AppContext.BaseDirectory, "servers");
 
-	public static string DefaultClusterDirectory => Path.Combine(AppContext.BaseDirectory, "clusters", "default");
+	public static string DefaultClusterDirectory => GetDefaultClusterDirectory(string.Empty);
+
+	public static string GetDefaultClusterDirectory(string? clusterId)
+	{
+		string clusterName = SanitizeClusterDirectoryName(clusterId);
+		return Path.Combine(AppContext.BaseDirectory, "clusters", string.IsNullOrWhiteSpace(clusterName) ? "default" : clusterName);
+	}
 
 	public DashboardViewModel(IServerProcessManager serverProcessManager, IConfigService configService, ILoggingService loggingService, IActivityLogService activityLog, ICurseForgeService curseForgeService, ConsoleViewModel consoleViewModel)
 	{
@@ -1250,12 +1256,62 @@ public class DashboardViewModel : ObservableObject
 		{
 			server.InstallDirectory = GetDefaultServerInstallDirectory(server.Name);
 		}
-		if (string.IsNullOrWhiteSpace(server.ClusterDirectory))
-		{
-			server.ClusterDirectory = DefaultClusterDirectory;
-		}
+		server.ClusterDirectory = NormalizeClusterDirectory(server);
+		server.Config.ClusterDirectory = server.ClusterDirectory;
 		Directory.CreateDirectory(server.InstallDirectory);
 		Directory.CreateDirectory(server.ClusterDirectory);
+	}
+
+	private static string NormalizeClusterDirectory(ServerInstance server)
+	{
+		string clusterDirectory = (server.ClusterDirectory ?? string.Empty).Trim().Trim('"');
+		string defaultDirectory = GetDefaultClusterDirectory(server.ClusterId);
+		if (string.IsNullOrWhiteSpace(clusterDirectory) || IsLegacyDefaultClusterDirectory(clusterDirectory))
+		{
+			return defaultDirectory;
+		}
+		if (!string.IsNullOrWhiteSpace(server.ClusterId) && IsSameDirectory(clusterDirectory, DefaultClusterDirectory))
+		{
+			return defaultDirectory;
+		}
+		return clusterDirectory;
+	}
+
+	private static bool IsLegacyDefaultClusterDirectory(string path)
+	{
+		return IsSameDirectory(path, Path.Combine(DefaultClusterDirectory, "clusters"));
+	}
+
+	private static bool IsSameDirectory(string first, string second)
+	{
+		if (string.IsNullOrWhiteSpace(first) || string.IsNullOrWhiteSpace(second))
+		{
+			return false;
+		}
+		try
+		{
+			string normalizedFirst = Path.GetFullPath(first.Trim().Trim('"')).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+			string normalizedSecond = Path.GetFullPath(second.Trim().Trim('"')).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+			return string.Equals(normalizedFirst, normalizedSecond, StringComparison.OrdinalIgnoreCase);
+		}
+		catch
+		{
+			return false;
+		}
+	}
+
+	private static string SanitizeClusterDirectoryName(string? clusterId)
+	{
+		string value = (clusterId ?? string.Empty).Trim();
+		if (string.IsNullOrWhiteSpace(value))
+		{
+			return string.Empty;
+		}
+		foreach (char invalid in Path.GetInvalidFileNameChars())
+		{
+			value = value.Replace(invalid, '_');
+		}
+		return value;
 	}
 
 	private static string NormalizeAsaMapName(string mapName)

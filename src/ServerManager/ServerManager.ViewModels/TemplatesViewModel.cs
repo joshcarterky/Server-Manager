@@ -377,7 +377,7 @@ public class TemplatesViewModel : ObservableObject
 		{
 			return template.ClusterDirectory;
 		}
-		return Path.Combine(AppContext.BaseDirectory, "clusters", string.IsNullOrWhiteSpace(template.ClusterId) ? "default" : template.ClusterId);
+		return DashboardViewModel.GetDefaultClusterDirectory(template.ClusterId);
 	}
 
 	private static string DisplayValue(string value)

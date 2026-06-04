@@ -553,7 +553,7 @@ public class ConfigureServerPanel : Border
 	{
 		if (_viewModel.SelectedServer != null)
 		{
-			_viewModel.SelectedServer.ClusterDirectory = DashboardViewModel.DefaultClusterDirectory;
+			_viewModel.SelectedServer.ClusterDirectory = DashboardViewModel.GetDefaultClusterDirectory(_viewModel.SelectedServer.ClusterId);
 		}
 	}
 
