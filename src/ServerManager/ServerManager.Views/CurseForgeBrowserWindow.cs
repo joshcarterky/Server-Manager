@@ -8,6 +8,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Markup;
+using System.Windows.Media;
 using System.Windows.Threading;
 using ServerManager.Models;
 using ServerManager.ViewModels;
@@ -253,9 +254,133 @@ public class CurseForgeBrowserWindow : Window, IComponentConnector
 		if (!_contentLoaded)
 		{
 			_contentLoaded = true;
-			Uri resourceLocator = new Uri("/ServerManager;component/views/curseforgebrowserwindow.xaml", UriKind.Relative);
-			Application.LoadComponent(this, resourceLocator);
+			Title = "CurseForge Browser";
+			Width = 1180.0;
+			Height = 760.0;
+			MinWidth = 900.0;
+			MinHeight = 560.0;
+			Background = Brush("#0b121b");
+			WindowStartupLocation = WindowStartupLocation.CenterOwner;
+
+			Grid root = new Grid
+			{
+				Background = Brush("#0b121b")
+			};
+			root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+			root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1.0, GridUnitType.Star) });
+
+			Grid toolbar = new Grid
+			{
+				Margin = new Thickness(12.0),
+				VerticalAlignment = VerticalAlignment.Center
+			};
+			toolbar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+			toolbar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+			toolbar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+			toolbar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
+			toolbar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+			toolbar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+			toolbar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+			Button back = ToolbarButton("Back", "#203249");
+			back.Click += Back_Click;
+			toolbar.Children.Add(back);
+
+			Button forward = ToolbarButton("Forward", "#203249");
+			forward.Click += Forward_Click;
+			Grid.SetColumn(forward, 1);
+			toolbar.Children.Add(forward);
+
+			Button refresh = ToolbarButton("Refresh", "#203249");
+			refresh.Click += Refresh_Click;
+			Grid.SetColumn(refresh, 2);
+			toolbar.Children.Add(refresh);
+
+			AddressBox = new TextBox
+			{
+				Background = Brush("#0d1824"),
+				Foreground = Brushes.White,
+				BorderBrush = Brush("#25384f"),
+				BorderThickness = new Thickness(1.0),
+				Padding = new Thickness(10.0, 8.0, 10.0, 8.0),
+				MinHeight = 36.0,
+				Margin = new Thickness(8.0, 0.0, 8.0, 0.0),
+				VerticalContentAlignment = VerticalAlignment.Center
+			};
+			AddressBox.KeyDown += AddressBox_KeyDown;
+			Grid.SetColumn(AddressBox, 3);
+			toolbar.Children.Add(AddressBox);
+
+			Button go = ToolbarButton("Go", "#4658ff");
+			go.Click += Go_Click;
+			Grid.SetColumn(go, 4);
+			toolbar.Children.Add(go);
+
+			Button addCurrent = ToolbarButton("Add Current Mod", "#047857");
+			addCurrent.Click += AddCurrentMod_Click;
+			Grid.SetColumn(addCurrent, 5);
+			toolbar.Children.Add(addCurrent);
+
+			Button openExternal = ToolbarButton("Open External", "#203249");
+			openExternal.Click += OpenExternal_Click;
+			Grid.SetColumn(openExternal, 6);
+			toolbar.Children.Add(openExternal);
+
+			root.Children.Add(toolbar);
+
+			Grid browserHost = new Grid
+			{
+				Margin = new Thickness(12.0, 0.0, 12.0, 12.0)
+			};
+			Browser = new WebView2();
+			Browser.SourceChanged += Browser_SourceChanged;
+			Browser.NavigationCompleted += Browser_NavigationCompleted;
+			Browser.ContentLoading += Browser_ContentLoading;
+			browserHost.Children.Add(Browser);
+
+			LoadingOverlay = new Border
+			{
+				Background = Brush("#cc0b121b"),
+				Visibility = Visibility.Collapsed,
+				Child = new TextBlock
+				{
+					Text = "Loading CurseForge...",
+					Foreground = Brushes.White,
+					FontSize = 16.0,
+					FontWeight = FontWeights.SemiBold,
+					HorizontalAlignment = HorizontalAlignment.Center,
+					VerticalAlignment = VerticalAlignment.Center
+				}
+			};
+			browserHost.Children.Add(LoadingOverlay);
+			Grid.SetRow(browserHost, 1);
+			root.Children.Add(browserHost);
+
+			Content = root;
 		}
+	}
+
+	private static Button ToolbarButton(string text, string color)
+	{
+		return new Button
+		{
+			Content = text,
+			Background = Brush(color),
+			Foreground = Brushes.White,
+			BorderBrush = Brushes.Transparent,
+			BorderThickness = new Thickness(0.0),
+			FontWeight = FontWeights.SemiBold,
+			Padding = new Thickness(12.0, 8.0, 12.0, 8.0),
+			MinHeight = 36.0,
+			Margin = new Thickness(0.0, 0.0, 8.0, 0.0)
+		};
+	}
+
+	private static SolidColorBrush Brush(string color)
+	{
+		SolidColorBrush brush = new SolidColorBrush((Color)ColorConverter.ConvertFromString(color));
+		brush.Freeze();
+		return brush;
 	}
 
 	[DebuggerNonUserCode]

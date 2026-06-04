@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.0.25 - 2026-06-04
+
+- Fixed the Configure Server Mods Open Website button by removing the broken CurseForge browser XAML resource dependency.
+- Added an external browser fallback if the in-app CurseForge browser cannot open.
+
 ## 2.0.24 - 2026-06-04
 
 - Made `GameUserSettings.ini` the source of truth for MaxPlayers when starting from the Servers tab.

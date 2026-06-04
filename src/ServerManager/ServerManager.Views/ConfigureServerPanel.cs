@@ -1164,11 +1164,23 @@ public class ConfigureServerPanel : Border
 
 	private void OpenCurseForgeBrowser()
 	{
-		CurseForgeBrowserWindow window = new CurseForgeBrowserWindow("https://www.curseforge.com/ark-survival-ascended/mods", _viewModel)
+		const string url = "https://www.curseforge.com/ark-survival-ascended/mods";
+		try
 		{
-			Owner = Window.GetWindow(this)
-		};
-		window.Show();
+			CurseForgeBrowserWindow window = new CurseForgeBrowserWindow(url, _viewModel)
+			{
+				Owner = Window.GetWindow(this)
+			};
+			window.Show();
+		}
+		catch
+		{
+			Process.Start(new ProcessStartInfo
+			{
+				FileName = url,
+				UseShellExecute = true
+			});
+		}
 	}
 
 	private static SolidColorBrush Brush(string color)

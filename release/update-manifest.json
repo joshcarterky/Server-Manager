@@ -1,7 +1,7 @@
 ﻿{
-    "version":  "2.0.24",
-    "downloadUrl":  "https://github.com/joshcarterky/Server-Manager/releases/download/v2.0.24/Dedicated-Server-Manager-v2.0.24-win-x64.zip",
-    "releaseNotesUrl":  "https://github.com/joshcarterky/Server-Manager/releases/tag/v2.0.24",
-    "sha256":  "4ddc624a67ecb46e4ac72ca5b91790c988259444943cb6fc7f4100135bc0f5bc",
-    "sizeBytes":  72297352
+    "version":  "2.0.25",
+    "downloadUrl":  "https://github.com/joshcarterky/Server-Manager/releases/download/v2.0.25/Dedicated-Server-Manager-v2.0.25-win-x64.zip",
+    "releaseNotesUrl":  "https://github.com/joshcarterky/Server-Manager/releases/tag/v2.0.25",
+    "sha256":  "af9907dea7372cd305f2e665dd2d7a89f0bec2e0d387cc69d6c39ecd0411f657",
+    "sizeBytes":  72297743
 }
