@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.0.23 - 2026-06-04
+
+- Refreshed the Templates tab with header stats, accented template cards, rate chips, and feature chips.
+- Reworked the Template Preview panel into summary, rate, launch settings, and cluster sections.
+
 ## 2.0.22 - 2026-06-04
 
 - Preserved SteamCMD's real exit code when the update terminal reports a Windows interruption code.

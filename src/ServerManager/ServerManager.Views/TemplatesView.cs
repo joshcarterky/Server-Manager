@@ -22,6 +22,12 @@ public class TemplatesView : UserControl
 
 	private readonly Button _deleteTemplateButton;
 
+	private readonly TextBlock _templateCountText;
+
+	private readonly TextBlock _customTemplateCountText;
+
+	private readonly TextBlock _gameCountText;
+
 	public TemplatesView(TemplatesViewModel viewModel)
 	{
 		_viewModel = viewModel;
@@ -35,31 +41,45 @@ public class TemplatesView : UserControl
 		root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1.0, GridUnitType.Star) });
 		root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
-		StackPanel header = new StackPanel
+		Grid header = new Grid
 		{
 			Margin = new Thickness(28.0, 24.0, 28.0, 16.0)
 		};
-		header.Children.Add(new TextBlock
+		header.ColumnDefinitions.Add(new ColumnDefinition());
+		header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+		StackPanel titleStack = new StackPanel();
+		titleStack.Children.Add(new TextBlock
 		{
 			Text = "Server Templates",
 			Foreground = Brushes.White,
 			FontSize = 24.0,
 			FontWeight = FontWeights.SemiBold
 		});
-		header.Children.Add(new TextBlock
+		titleStack.Children.Add(new TextBlock
 		{
 			Text = "Create a ready-to-edit server from a preset, or save your current server settings as a custom template.",
 			Foreground = BrushFrom("#9fb8d6"),
 			FontSize = 13.0,
 			Margin = new Thickness(0.0, 5.0, 0.0, 0.0)
 		});
+		header.Children.Add(titleStack);
+		StackPanel headerStats = new StackPanel
+		{
+			Orientation = Orientation.Horizontal,
+			VerticalAlignment = VerticalAlignment.Center
+		};
+		headerStats.Children.Add(CreateHeaderStat("Templates", out _templateCountText));
+		headerStats.Children.Add(CreateHeaderStat("Custom", out _customTemplateCountText));
+		headerStats.Children.Add(CreateHeaderStat("Games", out _gameCountText));
+		Grid.SetColumn(headerStats, 1);
+		header.Children.Add(headerStats);
 		root.Children.Add(header);
 
 		Grid content = new Grid
 		{
 			Margin = new Thickness(28.0, 0.0, 28.0, 18.0)
 		};
-		content.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(2.0, GridUnitType.Star) });
+		content.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(2.15, GridUnitType.Star) });
 		content.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(18.0) });
 		content.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 		ScrollViewer templateScroll = new ScrollViewer
@@ -72,11 +92,11 @@ public class TemplatesView : UserControl
 
 		Border previewFrame = new Border
 		{
-			Background = BrushFrom("#111d2a"),
+			Background = BrushFrom("#101b28"),
 			BorderBrush = BrushFrom("#25384f"),
 			BorderThickness = new Thickness(1.0),
 			CornerRadius = new CornerRadius(8.0),
-			Padding = new Thickness(16.0)
+			Padding = new Thickness(18.0)
 		};
 		Grid.SetColumn(previewFrame, 2);
 		StackPanel previewRoot = new StackPanel();
@@ -84,20 +104,21 @@ public class TemplatesView : UserControl
 		{
 			Text = "Template Preview",
 			Foreground = Brushes.White,
-			FontSize = 18.0,
+			FontSize = 20.0,
 			FontWeight = FontWeights.SemiBold
 		});
 		TextBlock selectedName = new TextBlock
 		{
-			Foreground = BrushFrom("#9fb8d6"),
-			FontSize = 13.0,
-			Margin = new Thickness(0.0, 4.0, 0.0, 14.0)
+			Foreground = BrushFrom("#d8e8ff"),
+			FontSize = 14.0,
+			FontWeight = FontWeights.SemiBold,
+			Margin = new Thickness(0.0, 5.0, 0.0, 12.0)
 		};
 		selectedName.SetBinding(TextBlock.TextProperty, "SelectedTemplate.Name");
 		previewRoot.Children.Add(selectedName);
 		_previewPanel = new StackPanel
 		{
-			Margin = new Thickness(0.0, 0.0, 0.0, 18.0)
+			Margin = new Thickness(0.0, 0.0, 0.0, 20.0)
 		};
 		previewRoot.Children.Add(_previewPanel);
 		previewRoot.Children.Add(CreateActionButton("Create Server From Template", delegate
@@ -161,11 +182,16 @@ public class TemplatesView : UserControl
 		Content = root;
 
 		_viewModel.PropertyChanged += ViewModel_PropertyChanged;
-		_viewModel.Templates.CollectionChanged += delegate { RebuildTemplateCards(); };
+		_viewModel.Templates.CollectionChanged += delegate
+		{
+			RebuildTemplateCards();
+			UpdateHeaderStats();
+		};
 		_viewModel.PreviewLines.CollectionChanged += delegate { RebuildPreview(); };
 		RebuildTemplateCards();
 		RebuildPreview();
 		UpdateStatus();
+		UpdateHeaderStats();
 		UpdateCustomTemplateButtons();
 	}
 
@@ -258,12 +284,23 @@ public class TemplatesView : UserControl
 			BorderBrush = BrushFrom(_viewModel.SelectedTemplate == template ? "#5d7cff" : "#25384f"),
 			BorderThickness = new Thickness(1.0),
 			CornerRadius = new CornerRadius(8.0),
-			Padding = new Thickness(14.0),
+			Padding = new Thickness(0.0),
 			Margin = new Thickness(0.0, 0.0, 14.0, 14.0),
 			Cursor = System.Windows.Input.Cursors.Hand
 		};
 		card.MouseLeftButtonUp += delegate { _viewModel.SelectedTemplate = template; };
-		StackPanel body = new StackPanel();
+		Grid cardGrid = new Grid();
+		cardGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(5.0) });
+		cardGrid.ColumnDefinitions.Add(new ColumnDefinition());
+		cardGrid.Children.Add(new Border
+		{
+			Background = BrushFrom(GetCategoryColor(template)),
+			CornerRadius = new CornerRadius(8.0, 0.0, 0.0, 8.0)
+		});
+		StackPanel body = new StackPanel
+		{
+			Margin = new Thickness(14.0)
+		};
 		Grid titleRow = new Grid();
 		titleRow.ColumnDefinitions.Add(new ColumnDefinition());
 		titleRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -276,7 +313,7 @@ public class TemplatesView : UserControl
 		});
 		Border category = new Border
 		{
-			Background = BrushFrom(template.IsCustom ? "#254d34" : "#18263a"),
+			Background = BrushFrom(template.IsCustom ? "#236747" : "#18263a"),
 			CornerRadius = new CornerRadius(6.0),
 			Padding = new Thickness(8.0, 4.0, 8.0, 4.0)
 		};
@@ -298,9 +335,24 @@ public class TemplatesView : UserControl
 			FontSize = 12.0,
 			Margin = new Thickness(0.0, 9.0, 0.0, 12.0)
 		});
+		WrapPanel rates = new WrapPanel
+		{
+			Margin = new Thickness(0.0, 0.0, 0.0, 10.0)
+		};
+		rates.Children.Add(CreateRatePill("Players", template.MaxPlayers.ToString()));
+		rates.Children.Add(CreateRatePill("XP", template.XPMultiplier + "x"));
+		rates.Children.Add(CreateRatePill("Harvest", template.HarvestMultiplier + "x"));
+		rates.Children.Add(CreateRatePill("Taming", template.TamingSpeedMultiplier + "x"));
+		body.Children.Add(rates);
 		body.Children.Add(CreateMetricRow("Type", template.Category, "Map", template.MapName));
-		body.Children.Add(CreateMetricRow("Players", template.MaxPlayers.ToString(), "XP", template.XPMultiplier + "x"));
-		body.Children.Add(CreateMetricRow("Harvest", template.HarvestMultiplier + "x", "Taming", template.TamingSpeedMultiplier + "x"));
+		WrapPanel features = new WrapPanel
+		{
+			Margin = new Thickness(0.0, 8.0, 0.0, 0.0)
+		};
+		features.Children.Add(CreateFeatureChip(template.CrossplayEnabled ? "Crossplay" : "No Crossplay", template.CrossplayEnabled));
+		features.Children.Add(CreateFeatureChip(template.BattleEyeEnabled ? "BattleEye" : "No BattleEye", template.BattleEyeEnabled));
+		features.Children.Add(CreateFeatureChip(template.NoTributeDownloads ? "Transfers Locked" : "Transfers Open", !template.NoTributeDownloads));
+		body.Children.Add(features);
 		Button applyButton = CreateSmallButton("Use Template", "#5d7cff");
 		applyButton.Margin = new Thickness(0.0, 14.0, 0.0, 0.0);
 		applyButton.Click += delegate
@@ -338,23 +390,74 @@ public class TemplatesView : UserControl
 			};
 			body.Children.Add(deleteButton);
 		}
-		card.Child = body;
+		Grid.SetColumn(body, 1);
+		cardGrid.Children.Add(body);
+		card.Child = cardGrid;
 		return card;
 	}
 
 	private void RebuildPreview()
 	{
 		_previewPanel.Children.Clear();
-		foreach (string line in _viewModel.PreviewLines)
+		ServerTemplatePreset? template = _viewModel.SelectedTemplate;
+		if (template == null)
 		{
-			_previewPanel.Children.Add(new TextBlock
-			{
-				Text = line,
-				Foreground = BrushFrom("#d8e8ff"),
-				FontSize = 13.0,
-				Margin = new Thickness(0.0, 0.0, 0.0, 8.0)
-			});
+			return;
 		}
+		Border summary = new Border
+		{
+			Background = BrushFrom("#0d1824"),
+			BorderBrush = BrushFrom("#25384f"),
+			BorderThickness = new Thickness(1.0),
+			CornerRadius = new CornerRadius(8.0),
+			Padding = new Thickness(14.0),
+			Margin = new Thickness(0.0, 0.0, 0.0, 14.0)
+		};
+		StackPanel summaryStack = new StackPanel();
+		summaryStack.Children.Add(new TextBlock
+		{
+			Text = template.Description,
+			Foreground = BrushFrom("#b9cdec"),
+			FontSize = 13.0,
+			TextWrapping = TextWrapping.Wrap
+		});
+		WrapPanel summaryChips = new WrapPanel
+		{
+			Margin = new Thickness(0.0, 12.0, 0.0, 0.0)
+		};
+		summaryChips.Children.Add(CreateFeatureChip(template.GameDisplayName, true));
+		summaryChips.Children.Add(CreateFeatureChip(template.MapName, true));
+		summaryChips.Children.Add(CreateFeatureChip(template.Category, true));
+		summaryStack.Children.Add(summaryChips);
+		summary.Child = summaryStack;
+		_previewPanel.Children.Add(summary);
+
+		Grid metrics = new Grid
+		{
+			Margin = new Thickness(0.0, 0.0, 0.0, 14.0)
+		};
+		metrics.ColumnDefinitions.Add(new ColumnDefinition());
+		metrics.ColumnDefinitions.Add(new ColumnDefinition());
+		metrics.RowDefinitions.Add(new RowDefinition());
+		metrics.RowDefinitions.Add(new RowDefinition());
+		metrics.Children.Add(CreatePreviewMetric("Players", template.MaxPlayers.ToString(), 0, 0));
+		metrics.Children.Add(CreatePreviewMetric("XP", template.XPMultiplier + "x", 0, 1));
+		metrics.Children.Add(CreatePreviewMetric("Harvest", template.HarvestMultiplier + "x", 1, 0));
+		metrics.Children.Add(CreatePreviewMetric("Taming", template.TamingSpeedMultiplier + "x", 1, 1));
+		_previewPanel.Children.Add(metrics);
+
+		_previewPanel.Children.Add(CreatePreviewSection("Launch Settings", new[]
+		{
+			"Difficulty: " + template.DifficultyOffset,
+			"Crossplay: " + (template.CrossplayEnabled ? "Enabled" : "Disabled"),
+			"BattleEye: " + (template.BattleEyeEnabled ? "Enabled" : "Disabled"),
+			"Transfers: " + (template.NoTributeDownloads ? "Restricted" : "Allowed")
+		}));
+		_previewPanel.Children.Add(CreatePreviewSection("Cluster", new[]
+		{
+			"Cluster ID: " + (string.IsNullOrWhiteSpace(template.ClusterId) ? "(none)" : template.ClusterId),
+			"Directory: " + (string.IsNullOrWhiteSpace(template.ClusterDirectory) ? "Default cluster folder" : template.ClusterDirectory)
+		}));
 	}
 
 	private Grid CreateMetricRow(string leftLabel, string leftValue, string rightLabel, string rightValue)
@@ -391,6 +494,153 @@ public class TemplatesView : UserControl
 		return stack;
 	}
 
+	private Border CreateHeaderStat(string label, out TextBlock valueText)
+	{
+		valueText = new TextBlock
+		{
+			Text = "0",
+			Foreground = Brushes.White,
+			FontSize = 18.0,
+			FontWeight = FontWeights.SemiBold,
+			HorizontalAlignment = HorizontalAlignment.Center
+		};
+		StackPanel stack = new StackPanel();
+		stack.Children.Add(valueText);
+		stack.Children.Add(new TextBlock
+		{
+			Text = label,
+			Foreground = BrushFrom("#8fb0d0"),
+			FontSize = 11.0,
+			HorizontalAlignment = HorizontalAlignment.Center
+		});
+		return new Border
+		{
+			Background = BrushFrom("#111d2a"),
+			BorderBrush = BrushFrom("#25384f"),
+			BorderThickness = new Thickness(1.0),
+			CornerRadius = new CornerRadius(8.0),
+			Padding = new Thickness(14.0, 8.0, 14.0, 8.0),
+			Margin = new Thickness(8.0, 0.0, 0.0, 0.0),
+			MinWidth = 78.0,
+			Child = stack
+		};
+	}
+
+	private Border CreateRatePill(string label, string value)
+	{
+		StackPanel stack = new StackPanel();
+		stack.Children.Add(new TextBlock
+		{
+			Text = label.ToUpperInvariant(),
+			Foreground = BrushFrom("#8fb0d0"),
+			FontSize = 9.0
+		});
+		stack.Children.Add(new TextBlock
+		{
+			Text = value,
+			Foreground = Brushes.White,
+			FontSize = 13.0,
+			FontWeight = FontWeights.SemiBold
+		});
+		return new Border
+		{
+			Background = BrushFrom("#0d1824"),
+			BorderBrush = BrushFrom("#25384f"),
+			BorderThickness = new Thickness(1.0),
+			CornerRadius = new CornerRadius(6.0),
+			Padding = new Thickness(8.0, 6.0, 8.0, 6.0),
+			Margin = new Thickness(0.0, 0.0, 6.0, 6.0),
+			MinWidth = 60.0,
+			Child = stack
+		};
+	}
+
+	private Border CreateFeatureChip(string text, bool enabled)
+	{
+		return new Border
+		{
+			Background = BrushFrom(enabled ? "#173852" : "#2b2534"),
+			BorderBrush = BrushFrom(enabled ? "#2e5f82" : "#4a3348"),
+			BorderThickness = new Thickness(1.0),
+			CornerRadius = new CornerRadius(999.0),
+			Padding = new Thickness(9.0, 4.0, 9.0, 4.0),
+			Margin = new Thickness(0.0, 0.0, 6.0, 6.0),
+			Child = new TextBlock
+			{
+				Text = text,
+				Foreground = BrushFrom("#d8e8ff"),
+				FontSize = 11.0,
+				FontWeight = FontWeights.SemiBold
+			}
+		};
+	}
+
+	private Border CreatePreviewMetric(string label, string value, int row, int column)
+	{
+		Border metric = CreateRatePill(label, value);
+		metric.Margin = new Thickness(column == 0 ? 0.0 : 6.0, 0.0, column == 0 ? 6.0 : 0.0, 8.0);
+		Grid.SetRow(metric, row);
+		Grid.SetColumn(metric, column);
+		return metric;
+	}
+
+	private Border CreatePreviewSection(string title, string[] lines)
+	{
+		StackPanel stack = new StackPanel();
+		stack.Children.Add(new TextBlock
+		{
+			Text = title,
+			Foreground = Brushes.White,
+			FontSize = 14.0,
+			FontWeight = FontWeights.SemiBold,
+			Margin = new Thickness(0.0, 0.0, 0.0, 8.0)
+		});
+		foreach (string line in lines)
+		{
+			stack.Children.Add(new TextBlock
+			{
+				Text = line,
+				Foreground = BrushFrom("#b9cdec"),
+				FontSize = 12.0,
+				TextWrapping = TextWrapping.Wrap,
+				Margin = new Thickness(0.0, 0.0, 0.0, 6.0)
+			});
+		}
+		return new Border
+		{
+			Background = BrushFrom("#0d1824"),
+			BorderBrush = BrushFrom("#25384f"),
+			BorderThickness = new Thickness(1.0),
+			CornerRadius = new CornerRadius(8.0),
+			Padding = new Thickness(14.0),
+			Margin = new Thickness(0.0, 0.0, 0.0, 14.0),
+			Child = stack
+		};
+	}
+
+	private static string GetCategoryColor(ServerTemplatePreset template)
+	{
+		if (template.IsCustom)
+		{
+			return "#18a66f";
+		}
+		switch (template.Category.ToLowerInvariant())
+		{
+			case "boosted":
+				return "#5d7cff";
+			case "casual":
+				return "#28a9e0";
+			case "challenge":
+				return "#d84a5f";
+			case "official":
+				return "#d6a84f";
+			case "specialized":
+				return "#9b6df3";
+			default:
+				return "#5d7cff";
+		}
+	}
+
 	private Button CreateActionButton(string text, Action action, string color)
 	{
 		Button button = CreateSmallButton(text, color);
@@ -418,6 +668,13 @@ public class TemplatesView : UserControl
 	private void UpdateStatus()
 	{
 		_statusText.Text = _viewModel.StatusText;
+	}
+
+	private void UpdateHeaderStats()
+	{
+		_templateCountText.Text = _viewModel.Templates.Count.ToString();
+		_customTemplateCountText.Text = _viewModel.Templates.Count(template => template.IsCustom).ToString();
+		_gameCountText.Text = _viewModel.Templates.Select(template => template.GameDisplayName).Distinct().Count().ToString();
 	}
 
 	private void UpdateCustomTemplateButtons()
