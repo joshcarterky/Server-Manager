@@ -245,10 +245,7 @@ public class ServersViewModel : ObservableObject
 		server.Config.AdminPassword = server.AdminPassword;
 		server.Config.MaxPlayers = server.MaxPlayers;
 		server.Config.ClusterId = server.ClusterId;
-		if (string.IsNullOrWhiteSpace(server.ClusterDirectory) || (!string.IsNullOrWhiteSpace(server.ClusterId) && string.Equals(NormalizeDirectoryPath(server.ClusterDirectory), NormalizeDirectoryPath(DefaultClusterDirectory), StringComparison.OrdinalIgnoreCase)))
-		{
-			server.ClusterDirectory = DashboardViewModel.GetDefaultClusterDirectory(server.ClusterId);
-		}
+		server.ClusterDirectory = DashboardViewModel.NormalizeClusterDirectory(server);
 		server.Config.ClusterDirectory = server.ClusterDirectory;
 		server.Config.NoTransferFromFiltering = server.NoTransferFromFiltering;
 		server.Config.CrossplayEnabled = server.CrossplayEnabled;

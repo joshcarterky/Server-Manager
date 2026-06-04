@@ -1262,24 +1262,29 @@ public class DashboardViewModel : ObservableObject
 		Directory.CreateDirectory(server.ClusterDirectory);
 	}
 
-	private static string NormalizeClusterDirectory(ServerInstance server)
+	public static string NormalizeClusterDirectory(ServerInstance server)
 	{
 		string clusterDirectory = (server.ClusterDirectory ?? string.Empty).Trim().Trim('"');
 		string defaultDirectory = GetDefaultClusterDirectory(server.ClusterId);
-		if (string.IsNullOrWhiteSpace(clusterDirectory) || IsLegacyDefaultClusterDirectory(clusterDirectory))
+		if (string.IsNullOrWhiteSpace(clusterDirectory) || IsLegacyNestedDefaultClusterDirectory(clusterDirectory))
 		{
 			return defaultDirectory;
 		}
-		if (!string.IsNullOrWhiteSpace(server.ClusterId) && IsSameDirectory(clusterDirectory, DefaultClusterDirectory))
+		if (!string.IsNullOrWhiteSpace(server.ClusterId) && IsDefaultClusterDirectory(clusterDirectory))
 		{
 			return defaultDirectory;
 		}
 		return clusterDirectory;
 	}
 
-	private static bool IsLegacyDefaultClusterDirectory(string path)
+	private static bool IsDefaultClusterDirectory(string path)
 	{
-		return IsSameDirectory(path, Path.Combine(DefaultClusterDirectory, "clusters"));
+		return IsSameDirectory(path, DefaultClusterDirectory) || PathEndsWith(path, "clusters", "default");
+	}
+
+	private static bool IsLegacyNestedDefaultClusterDirectory(string path)
+	{
+		return IsSameDirectory(path, Path.Combine(DefaultClusterDirectory, "clusters")) || PathEndsWith(path, "clusters", "default", "clusters");
 	}
 
 	private static bool IsSameDirectory(string first, string second)
@@ -1312,6 +1317,37 @@ public class DashboardViewModel : ObservableObject
 			value = value.Replace(invalid, '_');
 		}
 		return value;
+	}
+
+	private static bool PathEndsWith(string path, params string[] segments)
+	{
+		if (string.IsNullOrWhiteSpace(path) || segments.Length == 0)
+		{
+			return false;
+		}
+		try
+		{
+			string[] pathSegments = Path.GetFullPath(path.Trim().Trim('"'))
+				.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+				.Split(new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar }, StringSplitOptions.RemoveEmptyEntries);
+			if (pathSegments.Length < segments.Length)
+			{
+				return false;
+			}
+			for (int i = 0; i < segments.Length; i++)
+			{
+				string actual = pathSegments[pathSegments.Length - segments.Length + i];
+				if (!string.Equals(actual, segments[i], StringComparison.OrdinalIgnoreCase))
+				{
+					return false;
+				}
+			}
+			return true;
+		}
+		catch
+		{
+			return false;
+		}
 	}
 
 	private static string NormalizeAsaMapName(string mapName)
