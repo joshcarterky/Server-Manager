@@ -98,7 +98,7 @@ public class SteamCmdService : ISteamCmdService
 		if (num != 0)
 		{
 			_logger.Logger.Warning("SteamCMD returned exit code {ExitCode} for server {ServerName}", num, server.Name);
-			throw new InvalidOperationException($"SteamCMD failed with exit code {num}.");
+			throw new InvalidOperationException(GetSteamCmdFailureMessage(num));
 		}
 		progress.Report("Server files installed/updated successfully.");
 	}
@@ -157,10 +157,16 @@ public class SteamCmdService : ISteamCmdService
 		handler.AppendFormatted(arguments);
 		stringBuilder5.AppendLine(ref handler);
 		stringBuilder.AppendLine("set STEAM_EXIT=%ERRORLEVEL%");
-		stringBuilder.AppendLine("if not \"%STEAM_EXIT%\"==\"7\" goto steamcmd_done");
+		stringBuilder.AppendLine("set STEAM_ATTEMPT=1");
+		stringBuilder.AppendLine(":steamcmd_retry_check");
+		stringBuilder.AppendLine("if \"%STEAM_EXIT%\"==\"0\" goto steamcmd_done");
+		stringBuilder.AppendLine("if not \"%STEAM_EXIT%\"==\"7\" if not \"%STEAM_EXIT%\"==\"8\" goto steamcmd_done");
+		stringBuilder.AppendLine("if \"%STEAM_ATTEMPT%\"==\"3\" goto steamcmd_done");
 		stringBuilder.AppendLine("echo.");
-		stringBuilder.AppendLine("echo SteamCMD reported exit code 7. This can happen on first run while SteamCMD finishes setup.");
-		stringBuilder.AppendLine("echo Waiting 10 seconds, then retrying once...");
+		stringBuilder.AppendLine("if \"%STEAM_EXIT%\"==\"7\" echo SteamCMD reported exit code 7. This can happen on first run while SteamCMD finishes setup.");
+		stringBuilder.AppendLine("if \"%STEAM_EXIT%\"==\"8\" echo SteamCMD reported exit code 8. This is often a transient Steam download or content server failure.");
+		stringBuilder.AppendLine("echo Waiting 10 seconds, then retrying...");
+		stringBuilder.AppendLine("set /a STEAM_ATTEMPT+=1");
 		stringBuilder.AppendLine("timeout /t 10 /nobreak >nul");
 		stringBuilder2 = stringBuilder;
 		StringBuilder stringBuilder6 = stringBuilder2;
@@ -171,6 +177,7 @@ public class SteamCmdService : ISteamCmdService
 		handler.AppendFormatted(arguments);
 		stringBuilder6.AppendLine(ref handler);
 		stringBuilder.AppendLine("set STEAM_EXIT=%ERRORLEVEL%");
+		stringBuilder.AppendLine("goto steamcmd_retry_check");
 		stringBuilder.AppendLine(":steamcmd_done");
 		stringBuilder.AppendLine("echo.");
 		stringBuilder.AppendLine("echo SteamCMD exited with code %STEAM_EXIT%.");
@@ -188,5 +195,18 @@ public class SteamCmdService : ISteamCmdService
 		using Process process = Process.Start(startInfo) ?? throw new InvalidOperationException("Failed to start SteamCMD terminal.");
 		await process.WaitForExitAsync().ConfigureAwait(continueOnCapturedContext: false);
 		return process.ExitCode;
+	}
+
+	private static string GetSteamCmdFailureMessage(int exitCode)
+	{
+		if (exitCode == 8)
+		{
+			return "SteamCMD failed with exit code 8 after retries. This usually means SteamCMD could not complete the download/update. Make sure the ARK server is stopped, check your network and free disk space, then try Update again. If it keeps failing, delete SteamCMD's appcache folder and rerun the update.";
+		}
+		if (exitCode == 7)
+		{
+			return "SteamCMD failed with exit code 7 after retries. SteamCMD may still be finishing first-run setup; try Update again.";
+		}
+		return $"SteamCMD failed with exit code {exitCode}. Check the SteamCMD terminal output for the detailed Steam error.";
 	}
 }

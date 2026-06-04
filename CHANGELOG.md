@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.0.21 - 2026-06-04
+
+- Retried SteamCMD update failures with exit code 8 before showing an error.
+- Added clearer SteamCMD failure messages with next steps for exit codes 7 and 8.
+
 ## 2.0.20 - 2026-06-04
 
 - Stopped raw ASA stdout and stderr log spam from appearing in the RCON console.
