@@ -209,6 +209,7 @@ public class DashboardViewModel : ObservableObject
 			}
 			SyncSelectedServerMods();
 			SyncIniSettingsFromSelectedServer();
+			ReloadIniSettingsFromSelectedServerFiles();
 			SaveServerCommand.NotifyCanExecuteChanged();
 			StartServerCommand.NotifyCanExecuteChanged();
 			StopServerCommand.NotifyCanExecuteChanged();

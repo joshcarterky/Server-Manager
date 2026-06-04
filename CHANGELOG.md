@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.0.17 - 2026-06-04
+
+- Fixed selected servers so INI-backed settings reload from `Game.ini` and `GameUserSettings.ini` when the server is selected.
+- Prevented the Configure Server INI panel and editor from opening with stale saved app settings when newer INI file values exist.
+
 ## 2.0.16 - 2026-06-03
 
 - Improved the Logs tab with parsed log columns, summary counts, selected-entry details, and copy/export controls.
