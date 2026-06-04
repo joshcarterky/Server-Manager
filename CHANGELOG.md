@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.0.22 - 2026-06-04
+
+- Preserved SteamCMD's real exit code when the update terminal reports a Windows interruption code.
+- Added specific guidance for SteamCMD app state 0x6 failures on ARK: Survival Ascended updates.
+
 ## 2.0.21 - 2026-06-04
 
 - Retried SteamCMD update failures with exit code 8 before showing an error.

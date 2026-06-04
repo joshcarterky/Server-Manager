@@ -13,6 +13,7 @@ namespace ServerManager.Services;
 public class SteamCmdService : ISteamCmdService
 {
 	private const string SteamCmdUrl = "https://steamcdn-a.akamaihd.net/client/installer/steamcmd.zip";
+	private const int WindowsControlCExitCode = -1073741510;
 
 	private readonly IConfigService _configService;
 
@@ -130,9 +131,15 @@ public class SteamCmdService : ISteamCmdService
 	private static async Task<int> RunSteamCmdInTerminalAsync(string steamCmdPath, string arguments, string installDirectory, string serverName)
 	{
 		string scriptPath = Path.Combine(Path.GetDirectoryName(steamCmdPath) ?? AppContext.BaseDirectory, "server-install-update.cmd");
+		string exitCodePath = Path.Combine(Path.GetDirectoryName(steamCmdPath) ?? AppContext.BaseDirectory, "server-install-update.exitcode");
+		if (File.Exists(exitCodePath))
+		{
+			File.Delete(exitCodePath);
+		}
 		StringBuilder stringBuilder = new StringBuilder();
 		stringBuilder.AppendLine("@echo off");
 		stringBuilder.AppendLine("setlocal");
+		stringBuilder.AppendLine("set \"STEAM_EXIT_FILE=" + exitCodePath + "\"");
 		stringBuilder.AppendLine("title Dedicated Server Manager - Install / Update");
 		stringBuilder.AppendLine("echo Dedicated Server Manager - Install / Update");
 		StringBuilder stringBuilder2 = stringBuilder;
@@ -157,6 +164,7 @@ public class SteamCmdService : ISteamCmdService
 		handler.AppendFormatted(arguments);
 		stringBuilder5.AppendLine(ref handler);
 		stringBuilder.AppendLine("set STEAM_EXIT=%ERRORLEVEL%");
+		stringBuilder.AppendLine("echo %STEAM_EXIT%>\"%STEAM_EXIT_FILE%\"");
 		stringBuilder.AppendLine("set STEAM_ATTEMPT=1");
 		stringBuilder.AppendLine(":steamcmd_retry_check");
 		stringBuilder.AppendLine("if \"%STEAM_EXIT%\"==\"0\" goto steamcmd_done");
@@ -177,6 +185,7 @@ public class SteamCmdService : ISteamCmdService
 		handler.AppendFormatted(arguments);
 		stringBuilder6.AppendLine(ref handler);
 		stringBuilder.AppendLine("set STEAM_EXIT=%ERRORLEVEL%");
+		stringBuilder.AppendLine("echo %STEAM_EXIT%>\"%STEAM_EXIT_FILE%\"");
 		stringBuilder.AppendLine("goto steamcmd_retry_check");
 		stringBuilder.AppendLine(":steamcmd_done");
 		stringBuilder.AppendLine("echo.");
@@ -194,14 +203,33 @@ public class SteamCmdService : ISteamCmdService
 		};
 		using Process process = Process.Start(startInfo) ?? throw new InvalidOperationException("Failed to start SteamCMD terminal.");
 		await process.WaitForExitAsync().ConfigureAwait(continueOnCapturedContext: false);
+		if (process.ExitCode == WindowsControlCExitCode && TryReadSteamCmdExitCode(exitCodePath, out int steamExitCode))
+		{
+			return steamExitCode;
+		}
 		return process.ExitCode;
+	}
+
+	private static bool TryReadSteamCmdExitCode(string exitCodePath, out int exitCode)
+	{
+		exitCode = 0;
+		if (!File.Exists(exitCodePath))
+		{
+			return false;
+		}
+		string value = File.ReadAllText(exitCodePath).Trim();
+		return int.TryParse(value, out exitCode);
 	}
 
 	private static string GetSteamCmdFailureMessage(int exitCode)
 	{
+		if (exitCode == WindowsControlCExitCode)
+		{
+			return "SteamCMD update terminal was closed or interrupted before the update finished. Run Update again and leave the SteamCMD window open until it says to press a key.";
+		}
 		if (exitCode == 8)
 		{
-			return "SteamCMD failed with exit code 8 after retries. This usually means SteamCMD could not complete the download/update. Make sure the ARK server is stopped, check your network and free disk space, then try Update again. If it keeps failing, delete SteamCMD's appcache folder and rerun the update.";
+			return "SteamCMD failed with exit code 8 after retries. This usually means SteamCMD could not complete the download/update. Make sure the ARK server is stopped, check your network and free disk space, then try Update again. If it keeps failing with app state 0x6, delete the server install's steamapps\\downloading\\2430930 folder and steamapps\\appmanifest_2430930.acf file, then rerun the update.";
 		}
 		if (exitCode == 7)
 		{
