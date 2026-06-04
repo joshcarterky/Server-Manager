@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.0.18 - 2026-06-04
+
+- Fixed the Configure Server Mods tab so the bottom Server Load Order section can be reached on shorter windows.
+- Added internal scrolling to the inline Configure Server panel.
+
 ## 2.0.17 - 2026-06-04
 
 - Fixed selected servers so INI-backed settings reload from `Game.ini` and `GameUserSettings.ini` when the server is selected.

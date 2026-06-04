@@ -39,6 +39,7 @@ public class ConfigureServerPanel : Border
 		BorderBrush = Brush("#263a58");
 		BorderThickness = new Thickness(1.0);
 		CornerRadius = new CornerRadius(8.0);
+		MaxHeight = 720.0;
 		Visibility = Visibility.Collapsed;
 		Child = BuildContent();
 	}
@@ -56,7 +57,7 @@ public class ConfigureServerPanel : Border
 	{
 		Grid root = new Grid();
 		root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-		root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+		root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1.0, GridUnitType.Star) });
 
 		Grid header = new Grid();
 		header.ColumnDefinitions.Add(new ColumnDefinition());
@@ -89,8 +90,16 @@ public class ConfigureServerPanel : Border
 		_tabs.Items.Add(new TabItem { Header = "Mods", Content = BuildModsTab() });
 		_tabs.Items.Add(new TabItem { Header = "INI", Content = BuildIniTab() });
 		_tabs.Items.Add(new TabItem { Header = "Console", Content = BuildConsoleTab() });
-		Grid.SetRow(_tabs, 1);
-		root.Children.Add(_tabs);
+		ScrollViewer tabScroll = new ScrollViewer
+		{
+			Content = _tabs,
+			VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+			HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+			CanContentScroll = false,
+			Padding = new Thickness(0.0, 0.0, 8.0, 0.0)
+		};
+		Grid.SetRow(tabScroll, 1);
+		root.Children.Add(tabScroll);
 		return root;
 	}
 
@@ -181,7 +190,7 @@ public class ConfigureServerPanel : Border
 		Border resultsCard = ModsCard(new Thickness(0.0, 0.0, 0.0, 10.0));
 		Grid resultsGrid = new Grid();
 		resultsGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-		resultsGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(170.0) });
+		resultsGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(140.0) });
 		resultsGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 		resultsGrid.Children.Add(CardHeader("SR", "Search Results", "Mods found from CurseForge search. Select one, then click Add Selected."));
 
@@ -235,7 +244,7 @@ public class ConfigureServerPanel : Border
 		Border loadOrderCard = ModsCard(new Thickness(0.0));
 		Grid loadOrderGrid = new Grid();
 		loadOrderGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-		loadOrderGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(150.0) });
+		loadOrderGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(140.0) });
 		Grid loadOrderHeader = CardHeaderWithButton("LO", "Server Load Order", "Mods already added to this server. This is the list saved into the server launch configuration.", "View Installed Mods", delegate { OpenInstalledModsWindow(); });
 		loadOrderGrid.Children.Add(loadOrderHeader);
 
