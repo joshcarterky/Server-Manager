@@ -1,5 +1,5 @@
 Server Manager
-Version: 2.0.12
+Version: 2.0.28
 
 How to run:
 1. Extract this zip to a folder such as C:\Server Manager.

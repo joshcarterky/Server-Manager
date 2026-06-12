@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.0.28 - 2026-06-12
+
+- Added a detailed ASA server manager technical design document.
+- Added shared ASA server install discovery for executable, saves, config, logs, mods, and save data folders.
+- Added server profile path fields for save, config, log, and mod folders.
+- Added a reusable launch profile builder for ASA startup commands.
+- Expanded SQLite schema initialization for servers, clusters, mods, backups, schedules, users, logs, and settings.
+- Improved existing server imports so AMP/ASA launch and cluster settings are detected more reliably.
+
 ## 2.0.25 - 2026-06-04
 
 - Fixed the Configure Server Mods Open Website button by removing the broken CurseForge browser XAML resource dependency.
