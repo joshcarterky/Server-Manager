@@ -24,6 +24,14 @@ public class ServerInstance : INotifyPropertyChanged
 
 	private string _installDirectory = string.Empty;
 
+	private string _saveDirectory = string.Empty;
+
+	private string _configDirectory = string.Empty;
+
+	private string _logsDirectory = string.Empty;
+
+	private string _modsDirectory = string.Empty;
+
 	private string _clusterDirectory = string.Empty;
 
 	private string _name = "New Server";
@@ -59,6 +67,54 @@ public class ServerInstance : INotifyPropertyChanged
 	}
 
 	public string ExecutableName { get; set; } = "ArkAscendedServer.exe";
+
+	public string SaveDirectory
+	{
+		get
+		{
+			return _saveDirectory;
+		}
+		set
+		{
+			SetField(ref _saveDirectory, value, "SaveDirectory");
+		}
+	}
+
+	public string ConfigDirectory
+	{
+		get
+		{
+			return _configDirectory;
+		}
+		set
+		{
+			SetField(ref _configDirectory, value, "ConfigDirectory");
+		}
+	}
+
+	public string LogsDirectory
+	{
+		get
+		{
+			return _logsDirectory;
+		}
+		set
+		{
+			SetField(ref _logsDirectory, value, "LogsDirectory");
+		}
+	}
+
+	public string ModsDirectory
+	{
+		get
+		{
+			return _modsDirectory;
+		}
+		set
+		{
+			SetField(ref _modsDirectory, value, "ModsDirectory");
+		}
+	}
 
 
 	public string LaunchParameters { get; set; } = "";

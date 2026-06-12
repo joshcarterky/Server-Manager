@@ -51,6 +51,8 @@ public class App : Application
 			services.AddSingleton<IConfigService, ConfigService>();
 			services.AddSingleton<ICurseForgeService, CurseForgeService>();
 			services.AddSingleton<ISteamCmdService, SteamCmdService>();
+			services.AddSingleton<IAsaServerDiscoveryService, AsaServerDiscoveryService>();
+			services.AddSingleton<ILaunchProfileBuilder, LaunchProfileBuilder>();
 			services.AddSingleton<IServerProcessManager, ServerProcessManager>();
 			services.AddSingleton<IRconService, RconService>();
 			services.AddSingleton<ISchedulerService, SchedulerService>();
@@ -129,6 +131,8 @@ public class App : Application
 			services.AddSingleton<IConfigService, ConfigService>();
 			services.AddSingleton<ICurseForgeService, CurseForgeService>();
 			services.AddSingleton<ISteamCmdService, SteamCmdService>();
+			services.AddSingleton<IAsaServerDiscoveryService, AsaServerDiscoveryService>();
+			services.AddSingleton<ILaunchProfileBuilder, LaunchProfileBuilder>();
 			services.AddSingleton<IServerProcessManager, ServerProcessManager>();
 			services.AddSingleton<IRconService, RconService>();
 			services.AddSingleton<ISchedulerService, SchedulerService>();

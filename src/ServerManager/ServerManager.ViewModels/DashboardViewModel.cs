@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Threading;
@@ -26,6 +27,8 @@ public class DashboardViewModel : ObservableObject
 	private readonly ICurseForgeService _curseForgeService;
 
 	private readonly ConsoleViewModel _consoleViewModel;
+
+	private readonly IAsaServerDiscoveryService _asaServerDiscoveryService;
 
 	private readonly AppConfig _appConfig;
 
@@ -257,7 +260,7 @@ public class DashboardViewModel : ObservableObject
 		return Path.Combine(AppContext.BaseDirectory, "clusters", string.IsNullOrWhiteSpace(clusterName) ? "default" : clusterName);
 	}
 
-	public DashboardViewModel(IServerProcessManager serverProcessManager, IConfigService configService, ILoggingService loggingService, IActivityLogService activityLog, ICurseForgeService curseForgeService, ConsoleViewModel consoleViewModel)
+	public DashboardViewModel(IServerProcessManager serverProcessManager, IConfigService configService, ILoggingService loggingService, IActivityLogService activityLog, ICurseForgeService curseForgeService, ConsoleViewModel consoleViewModel, IAsaServerDiscoveryService asaServerDiscoveryService)
 	{
 		_serverProcessManager = serverProcessManager;
 		_configService = configService;
@@ -265,6 +268,7 @@ public class DashboardViewModel : ObservableObject
 		_activityLog = activityLog;
 		_curseForgeService = curseForgeService;
 		_consoleViewModel = consoleViewModel;
+		_asaServerDiscoveryService = asaServerDiscoveryService;
 		_appConfig = Task.Run(() => _configService.LoadAsync()).GetAwaiter().GetResult();
 		foreach (CurseForgeModResult topDownloadedAsaMod in _curseForgeService.GetTopDownloadedAsaMods())
 		{
@@ -357,9 +361,15 @@ public class DashboardViewModel : ObservableObject
 	{
 		if (!string.IsNullOrWhiteSpace(selectedDirectory))
 		{
-			string sourceInstallDirectory = ResolveExistingInstallDirectory(selectedDirectory);
-			string savedDirectory = ResolveExistingSavedDirectory(sourceInstallDirectory, selectedDirectory);
-			Dictionary<string, string> importedSettings = ReadImportedServerSettings(savedDirectory);
+			AsaServerDiscoveryResult sourceDiscovery = _asaServerDiscoveryService.Discover(selectedDirectory);
+			if (!sourceDiscovery.IsValidInstall)
+			{
+				MessageBox.Show(string.Join(Environment.NewLine, sourceDiscovery.Errors), "Invalid ASA server folder", MessageBoxButton.OK, MessageBoxImage.Warning);
+				return;
+			}
+			string sourceInstallDirectory = sourceDiscovery.InstallDirectory;
+			string savedDirectory = string.IsNullOrWhiteSpace(sourceDiscovery.SavedDirectory) ? ResolveExistingSavedDirectory(sourceInstallDirectory, selectedDirectory) : sourceDiscovery.SavedDirectory;
+			Dictionary<string, string> importedSettings = ReadImportedServerSettings(savedDirectory, sourceInstallDirectory, selectedDirectory);
 			string fallbackName = new DirectoryInfo(sourceInstallDirectory).Name;
 			ServerInstance server = new ServerInstance
 			{
@@ -378,6 +388,8 @@ public class DashboardViewModel : ObservableObject
 				await Task.Run(() => CopyDirectory(sourceInstallDirectory, installDirectory));
 			}
 			server.InstallDirectory = installDirectory;
+			AsaServerDiscoveryResult importedDiscovery = _asaServerDiscoveryService.Discover(server.InstallDirectory);
+			_asaServerDiscoveryService.ApplyToServer(server, importedDiscovery);
 			ApplyDefaultDirectories(server);
 			NormalizeServerSettings(server);
 			_appConfig.Servers.Add(server);
@@ -1472,46 +1484,219 @@ public class DashboardViewModel : ObservableObject
 		return installSavedDirectory;
 	}
 
-	private static Dictionary<string, string> ReadImportedServerSettings(string savedDirectory)
+	private static Dictionary<string, string> ReadImportedServerSettings(string savedDirectory, string installDirectory, string selectedDirectory)
 	{
 		Dictionary<string, string> settings = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 		string gameUserSettingsPath = Path.Combine(savedDirectory, "Config", "WindowsServer", "GameUserSettings.ini");
-		if (!File.Exists(gameUserSettingsPath))
+		if (File.Exists(gameUserSettingsPath))
 		{
-			return settings;
+			ReadImportedIniSettings(gameUserSettingsPath, settings);
 		}
-		string section = string.Empty;
-		foreach (string rawLine in File.ReadAllLines(gameUserSettingsPath))
+		string gamePath = Path.Combine(savedDirectory, "Config", "WindowsServer", "Game.ini");
+		if (File.Exists(gamePath))
 		{
-			string line = rawLine.Trim();
-			if (string.IsNullOrWhiteSpace(line) || line.StartsWith(";", StringComparison.Ordinal) || line.StartsWith("#", StringComparison.Ordinal))
-			{
-				continue;
-			}
-			if (line.StartsWith("[", StringComparison.Ordinal) && line.EndsWith("]", StringComparison.Ordinal))
-			{
-				section = line.Substring(1, line.Length - 2);
-				continue;
-			}
-			int equalsIndex = line.IndexOf('=');
-			if (equalsIndex <= 0 || !IsImportIniSection(section))
-			{
-				continue;
-			}
-			string key = line.Substring(0, equalsIndex).Trim();
-			string value = line.Substring(equalsIndex + 1).Trim();
-			if (!string.IsNullOrWhiteSpace(key))
-			{
-				settings[key] = value;
-			}
+			ReadImportedIniSettings(gamePath, settings);
+		}
+		foreach (string filePath in FindImportedServerTextFiles(savedDirectory, installDirectory, selectedDirectory))
+		{
+			ReadImportedLaunchSettings(filePath, settings);
 		}
 		return settings;
+	}
+
+	private static void ReadImportedIniSettings(string filePath, Dictionary<string, string> settings)
+	{
+		try
+		{
+			string section = string.Empty;
+			foreach (string rawLine in File.ReadAllLines(filePath))
+			{
+				string line = rawLine.Trim();
+				if (string.IsNullOrWhiteSpace(line) || line.StartsWith(";", StringComparison.Ordinal) || line.StartsWith("#", StringComparison.Ordinal))
+				{
+					continue;
+				}
+				if (line.StartsWith("[", StringComparison.Ordinal) && line.EndsWith("]", StringComparison.Ordinal))
+				{
+					section = line.Substring(1, line.Length - 2);
+					continue;
+				}
+				int equalsIndex = line.IndexOf('=');
+				if (equalsIndex <= 0 || !IsImportIniSection(section))
+				{
+					continue;
+				}
+				string key = line.Substring(0, equalsIndex).Trim();
+				string value = line.Substring(equalsIndex + 1).Trim();
+				if (!string.IsNullOrWhiteSpace(key))
+				{
+					settings[key] = UnquoteImportedValue(value);
+				}
+			}
+		}
+		catch
+		{
+		}
 	}
 
 	private static bool IsImportIniSection(string section)
 	{
 		return section.Equals("ServerSettings", StringComparison.OrdinalIgnoreCase)
-			|| section.Equals("/Script/ShooterGame.ShooterGameUserSettings", StringComparison.OrdinalIgnoreCase);
+			|| section.Equals("/Script/ShooterGame.ShooterGameUserSettings", StringComparison.OrdinalIgnoreCase)
+			|| section.Equals("/script/shootergame.shootergamemode", StringComparison.OrdinalIgnoreCase);
+	}
+
+	private static IEnumerable<string> FindImportedServerTextFiles(params string[] roots)
+	{
+		HashSet<string> seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+		string[] patterns = { "*.bat", "*.cmd", "*.ps1", "*.txt", "*.json", "*.cfg", "*.config", "*.conf", "*.xml", "*.ini" };
+		foreach (string root in roots.Where((string x) => !string.IsNullOrWhiteSpace(x)).Select(Path.GetFullPath).Distinct(StringComparer.OrdinalIgnoreCase))
+		{
+			if (File.Exists(root))
+			{
+				if (seen.Add(root))
+				{
+					yield return root;
+				}
+				continue;
+			}
+			if (!Directory.Exists(root))
+			{
+				continue;
+			}
+			foreach (string pattern in patterns)
+			{
+				IEnumerable<string> files;
+				try
+				{
+					files = Directory.EnumerateFiles(root, pattern, SearchOption.AllDirectories).Take(250).ToArray();
+				}
+				catch
+				{
+					continue;
+				}
+				foreach (string file in files)
+				{
+					if (seen.Add(file))
+					{
+						yield return file;
+					}
+				}
+			}
+		}
+	}
+
+	private static void ReadImportedLaunchSettings(string filePath, Dictionary<string, string> settings)
+	{
+		try
+		{
+			FileInfo info = new FileInfo(filePath);
+			if (!info.Exists || info.Length > 1024 * 1024)
+			{
+				return;
+			}
+			string text = File.ReadAllText(filePath);
+			foreach (Match match in Regex.Matches(text, @"(?<prefix>[-?])(?<key>[A-Za-z][A-Za-z0-9_]*)(?:=(?:""(?<quoted>[^""]*)""|'(?<single>[^']*)'|(?<value>[^\s?""'<>]+)))?", RegexOptions.IgnoreCase))
+			{
+				string key = NormalizeImportedLaunchKey(match.Groups["key"].Value);
+				if (string.IsNullOrWhiteSpace(key) || !IsSupportedImportedLaunchKey(key))
+				{
+					continue;
+				}
+				string value = "True";
+				if (match.Groups["quoted"].Success)
+				{
+					value = match.Groups["quoted"].Value;
+				}
+				else if (match.Groups["single"].Success)
+				{
+					value = match.Groups["single"].Value;
+				}
+				else if (match.Groups["value"].Success)
+				{
+					value = match.Groups["value"].Value;
+				}
+				settings[key] = UnquoteImportedValue(value);
+			}
+			foreach (Match match in Regex.Matches(text, @"(?:""(?<jsonkey>[A-Za-z][A-Za-z0-9_]*)""\s*:\s*""(?<jsonvalue>[^""]*)""|(?<key>[A-Za-z][A-Za-z0-9_]*)\s*=\s*(?:""(?<quoted>[^""]*)""|'(?<single>[^']*)'|(?<value>[^\r\n#;]+))|<(?<xmlkey>[A-Za-z][A-Za-z0-9_]*)>(?<xmlvalue>[^<]*)</[A-Za-z][A-Za-z0-9_]*>)", RegexOptions.IgnoreCase))
+			{
+				string rawKey = match.Groups["jsonkey"].Success ? match.Groups["jsonkey"].Value : (match.Groups["xmlkey"].Success ? match.Groups["xmlkey"].Value : match.Groups["key"].Value);
+				string key = NormalizeImportedLaunchKey(rawKey);
+				if (string.IsNullOrWhiteSpace(key) || !IsSupportedImportedLaunchKey(key))
+				{
+					continue;
+				}
+				string value = match.Groups["jsonvalue"].Success ? match.Groups["jsonvalue"].Value : (match.Groups["xmlvalue"].Success ? match.Groups["xmlvalue"].Value : (match.Groups["quoted"].Success ? match.Groups["quoted"].Value : (match.Groups["single"].Success ? match.Groups["single"].Value : match.Groups["value"].Value)));
+				settings[key] = UnquoteImportedValue(value);
+			}
+		}
+		catch
+		{
+		}
+	}
+
+	private static string NormalizeImportedLaunchKey(string key)
+	{
+		return key switch
+		{
+			"Port" or "port" => "Port",
+			"QueryPort" or "queryport" => "QueryPort",
+			"RCONPort" or "rconport" => "RCONPort",
+			"RCONEnabled" or "rconenabled" => "RCONEnabled",
+			"ServerAdminPassword" or "serveradminpassword" => "ServerAdminPassword",
+			"ServerPassword" or "serverpassword" => "ServerPassword",
+			"MaxPlayers" or "maxplayers" => "MaxPlayers",
+			"ClusterDirOverride" or "clusterdir-override" or "clusterdir" => "ClusterDirOverride",
+			"ClusterId" or "clusterid" => "clusterid",
+			"NoTransferFromFiltering" or "notransferfromfiltering" => "NoTransferFromFiltering",
+			"NoTributeDownloads" or "noTributeDownloads" or "notributedownloads" => "noTributeDownloads",
+			"PreventDownloadSurvivors" or "preventdownloadsurvivors" => "PreventDownloadSurvivors",
+			"PreventDownloadItems" or "preventdownloaditems" => "PreventDownloadItems",
+			"PreventDownloadDinos" or "preventdownloaddinos" => "PreventDownloadDinos",
+			"PreventUploadSurvivors" or "preventuploadsurvivors" => "PreventUploadSurvivors",
+			"PreventUploadItems" or "preventuploaditems" => "PreventUploadItems",
+			"PreventUploadDinos" or "preventuploaddinos" => "PreventUploadDinos",
+			"MinimumDinoReuploadInterval" or "minimumdinoreuploadinterval" => "MinimumDinoReuploadInterval",
+			"TributeCharacterExpirationSeconds" or "tributecharacterexpirationseconds" => "TributeCharacterExpirationSeconds",
+			"TributeDinoExpirationSeconds" or "tributedinoexpirationseconds" => "TributeDinoExpirationSeconds",
+			"TributeItemExpirationSeconds" or "tributeitemexpirationseconds" => "TributeItemExpirationSeconds",
+			_ => key
+		};
+	}
+
+	private static bool IsSupportedImportedLaunchKey(string key)
+	{
+		return key.Equals("Port", StringComparison.OrdinalIgnoreCase)
+			|| key.Equals("QueryPort", StringComparison.OrdinalIgnoreCase)
+			|| key.Equals("RCONPort", StringComparison.OrdinalIgnoreCase)
+			|| key.Equals("RCONEnabled", StringComparison.OrdinalIgnoreCase)
+			|| key.Equals("ServerAdminPassword", StringComparison.OrdinalIgnoreCase)
+			|| key.Equals("ServerPassword", StringComparison.OrdinalIgnoreCase)
+			|| key.Equals("MaxPlayers", StringComparison.OrdinalIgnoreCase)
+			|| key.Equals("ClusterDirOverride", StringComparison.OrdinalIgnoreCase)
+			|| key.Equals("clusterid", StringComparison.OrdinalIgnoreCase)
+			|| key.Equals("NoTransferFromFiltering", StringComparison.OrdinalIgnoreCase)
+			|| key.Equals("noTributeDownloads", StringComparison.OrdinalIgnoreCase)
+			|| key.Equals("PreventDownloadSurvivors", StringComparison.OrdinalIgnoreCase)
+			|| key.Equals("PreventDownloadItems", StringComparison.OrdinalIgnoreCase)
+			|| key.Equals("PreventDownloadDinos", StringComparison.OrdinalIgnoreCase)
+			|| key.Equals("PreventUploadSurvivors", StringComparison.OrdinalIgnoreCase)
+			|| key.Equals("PreventUploadItems", StringComparison.OrdinalIgnoreCase)
+			|| key.Equals("PreventUploadDinos", StringComparison.OrdinalIgnoreCase)
+			|| key.Equals("MinimumDinoReuploadInterval", StringComparison.OrdinalIgnoreCase)
+			|| key.Equals("TributeCharacterExpirationSeconds", StringComparison.OrdinalIgnoreCase)
+			|| key.Equals("TributeDinoExpirationSeconds", StringComparison.OrdinalIgnoreCase)
+			|| key.Equals("TributeItemExpirationSeconds", StringComparison.OrdinalIgnoreCase);
+	}
+
+	private static string UnquoteImportedValue(string value)
+	{
+		string trimmed = (value ?? string.Empty).Trim();
+		if (trimmed.Length >= 2 && ((trimmed[0] == '"' && trimmed[^1] == '"') || (trimmed[0] == '\'' && trimmed[^1] == '\'')))
+		{
+			return trimmed.Substring(1, trimmed.Length - 2);
+		}
+		return trimmed;
 	}
 
 	private static string DetectImportedMapName(string savedDirectory, Dictionary<string, string> settings)

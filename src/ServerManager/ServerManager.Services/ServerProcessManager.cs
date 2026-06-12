@@ -74,12 +74,18 @@ public class ServerProcessManager : IServerProcessManager
 
 	private readonly IServerConsoleService _serverConsoleService;
 
+	private readonly ILaunchProfileBuilder _launchProfileBuilder;
+
+	private readonly IAsaServerDiscoveryService _asaServerDiscoveryService;
+
 	public IReadOnlyList<ServerInstance> Servers => _servers.AsReadOnly();
 
-	public ServerProcessManager(ILoggingService loggingService, IServerConsoleService serverConsoleService)
+	public ServerProcessManager(ILoggingService loggingService, IServerConsoleService serverConsoleService, ILaunchProfileBuilder launchProfileBuilder, IAsaServerDiscoveryService asaServerDiscoveryService)
 	{
 		_loggingService = loggingService;
 		_serverConsoleService = serverConsoleService;
+		_launchProfileBuilder = launchProfileBuilder;
+		_asaServerDiscoveryService = asaServerDiscoveryService;
 	}
 
 	public Task InitializeAsync(AppConfig config)
@@ -113,10 +119,12 @@ public class ServerProcessManager : IServerProcessManager
 	public async Task StartServerAsync(ServerInstance server)
 	{
 		ServerInstance server2 = server;
-		string fileName = ResolveServerExecutable(server2);
+		AsaServerDiscoveryResult discovery = _asaServerDiscoveryService.Discover(server2.InstallDirectory);
+		_asaServerDiscoveryService.ApplyToServer(server2, discovery);
+		string fileName = discovery.ExecutablePath;
 		if (string.IsNullOrWhiteSpace(fileName))
 		{
-			throw new FileNotFoundException("Server executable not found. Run Install / Update first, or choose the folder that contains the installed ASA server files.", Path.Combine(server2.InstallDirectory, "ShooterGame", "Binaries", "Win64", "ArkAscendedServer.exe"));
+			throw new FileNotFoundException("Server executable not found. Run Install / Update first, or choose a valid ASA server install folder.", Path.Combine(server2.InstallDirectory, "ShooterGame", "Binaries", "Win64", "ArkAscendedServer.exe"));
 		}
 		if (TryAttachRunningServerProcess(server2, fileName, out ManagedServerProcess? existingProcess))
 		{
@@ -134,10 +142,10 @@ public class ServerProcessManager : IServerProcessManager
 				_serverConsoleService.AddLine(server2, $"Using cluster '{server2.ClusterId}' at '{server2.ClusterDirectory}'.");
 			}
 			EnsureRconConfiguration(server2);
-			string arguments = BuildLaunchArguments(server2);
-			ProcessStartInfo startInfo = new ProcessStartInfo(fileName, arguments)
+			LaunchProfile launchProfile = _launchProfileBuilder.Build(server2, fileName);
+			ProcessStartInfo startInfo = new ProcessStartInfo(launchProfile.ExecutablePath, launchProfile.Arguments)
 			{
-				WorkingDirectory = Path.GetDirectoryName(fileName) ?? server2.InstallDirectory,
+				WorkingDirectory = launchProfile.WorkingDirectory,
 				UseShellExecute = false,
 				CreateNoWindow = true,
 				WindowStyle = ProcessWindowStyle.Hidden,
@@ -170,7 +178,7 @@ public class ServerProcessManager : IServerProcessManager
 				_serverConsoleService.AddLine(server2, "Server process exited.");
 			};
 			_serverConsoleService.AddLine(server2, "Starting server process...");
-			_serverConsoleService.AddLine(server2, Path.GetFileName(fileName) + " " + arguments);
+			_serverConsoleService.AddLine(server2, Path.GetFileName(fileName) + " " + launchProfile.Arguments);
 			process.Start();
 			_ = HideProcessWindowAsync(process);
 			process.BeginOutputReadLine();
@@ -192,38 +200,6 @@ public class ServerProcessManager : IServerProcessManager
 		{
 			return false;
 		}
-	}
-
-	private static string ResolveServerExecutable(ServerInstance server)
-	{
-		string[] candidatePaths = new string[4]
-		{
-			Path.Combine(server.InstallDirectory, server.ExecutableName),
-			Path.Combine(server.InstallDirectory, "ShooterGame", "Binaries", "Win64", server.ExecutableName),
-			Path.Combine(server.InstallDirectory, "ShooterGame", "Binaries", "Win64", "ArkAscendedServer.exe"),
-			Path.Combine(server.InstallDirectory, "ShooterGame", "Binaries", "Win64", "ShooterGameServer.exe")
-		};
-		foreach (string path in candidatePaths)
-		{
-			if (File.Exists(path))
-			{
-				server.ExecutableName = Path.GetFileName(path);
-				return path;
-			}
-		}
-		try
-		{
-			string? discovered = Directory.EnumerateFiles(server.InstallDirectory, "ArkAscendedServer.exe", SearchOption.AllDirectories).FirstOrDefault();
-			if (!string.IsNullOrWhiteSpace(discovered))
-			{
-				server.ExecutableName = Path.GetFileName(discovered);
-				return discovered;
-			}
-		}
-		catch
-		{
-		}
-		return string.Empty;
 	}
 
 	private static async Task HideProcessWindowAsync(Process process)
@@ -292,7 +268,9 @@ public class ServerProcessManager : IServerProcessManager
 	{
 		if (!_processes.TryGetValue(server.Id, out ManagedServerProcess value) || !value.IsRunning)
 		{
-			string fileName = ResolveServerExecutable(server);
+			AsaServerDiscoveryResult discovery = _asaServerDiscoveryService.Discover(server.InstallDirectory);
+			_asaServerDiscoveryService.ApplyToServer(server, discovery);
+			string fileName = discovery.ExecutablePath;
 			if (!string.IsNullOrWhiteSpace(fileName) && TryAttachRunningServerProcess(server, fileName, out ManagedServerProcess? attachedProcess))
 			{
 				_processes[server.Id] = attachedProcess;
@@ -381,105 +359,6 @@ public class ServerProcessManager : IServerProcessManager
 			}
 			await Task.Delay(2000).ConfigureAwait(continueOnCapturedContext: false);
 		}
-	}
-
-	private static string BuildLaunchArguments(ServerInstance server)
-	{
-		string rconPassword = GetRconPassword(server);
-		string mapOptions = GetMapPackageName(server.MapName) + "?SessionName=" + CleanMapOptionValue(server.Name) + "?ServerAdminPassword=" + CleanMapOptionValue(rconPassword) + "?RCONEnabled=True?RCONPort=" + server.RconPort;
-		List<string> list = new List<string>
-		{
-			QuoteLaunchArgument(mapOptions),
-			"-server",
-			"-NoLogWindow",
-			"-stdout",
-			"-FullStdOutLogOutput",
-			$"-port={server.GamePort}",
-			$"-queryport={server.QueryPort}",
-			$"-RCONPort={server.RconPort}",
-			"-RCONEnabled=" + (server.Config.UseRcon ? "True" : "False"),
-			"-ServerAdminPassword=" + rconPassword,
-			"-Crossplay=" + (server.CrossplayEnabled ? "true" : "false")
-		};
-		if (!server.BattleEyeEnabled || !server.Config.UseBattleEye)
-		{
-			list.Add("-NoBattlEye");
-		}
-		if (!string.IsNullOrWhiteSpace(server.ServerPassword))
-		{
-			list.Add("-serverpassword=" + server.ServerPassword);
-		}
-		if (!string.IsNullOrWhiteSpace(server.AdminPassword))
-		{
-			list.Add("-adminpassword=" + server.AdminPassword);
-		}
-		if (!string.IsNullOrWhiteSpace(server.ClusterId))
-		{
-			list.Add("-clusterid=" + server.ClusterId);
-			if (!string.IsNullOrWhiteSpace(server.ClusterDirectory))
-			{
-				list.Add("-ClusterDirOverride=\"" + server.ClusterDirectory.Trim().Trim('"') + "\"");
-			}
-			if (server.NoTransferFromFiltering)
-			{
-				list.Add("-NoTransferFromFiltering");
-			}
-		}
-		if (!string.IsNullOrWhiteSpace(server.LaunchParameters))
-		{
-			list.Add(RemoveManagedLaunchArguments(server.LaunchParameters));
-		}
-		if (server.Mods.Count > 0 && !list.Any((string x) => x.StartsWith("-mods=", StringComparison.OrdinalIgnoreCase)))
-		{
-			string text = string.Join(",", from x in server.Mods
-				orderby x.LoadOrder
-				select x.WorkshopId into x
-				where !string.IsNullOrWhiteSpace(x)
-				select x);
-			if (!string.IsNullOrWhiteSpace(text))
-			{
-				list.Add("-mods=" + text);
-			}
-		}
-		return string.Join(' ', list);
-	}
-
-	private static string CleanMapOptionValue(string value)
-	{
-		return (value ?? string.Empty).Trim().Replace("\"", string.Empty).Replace("?", string.Empty);
-	}
-
-	private static string QuoteLaunchArgument(string argument)
-	{
-		if (string.IsNullOrWhiteSpace(argument))
-		{
-			return "\"\"";
-		}
-		if (!argument.Any(char.IsWhiteSpace) && !argument.Contains('"'))
-		{
-			return argument;
-		}
-		return "\"" + argument.Replace("\"", "\\\"") + "\"";
-	}
-
-	private static string GetMapPackageName(string mapName)
-	{
-		return (mapName ?? string.Empty).Trim() switch
-		{
-			"TheIsland" => "TheIsland_WP",
-			"TheCenter" => "TheCenter_WP",
-			"ScorchedEarth" => "ScorchedEarth_WP",
-			"Ragnarok" => "Ragnarok_WP",
-			"Aberration" => "Aberration_WP",
-			"Extinction" => "Extinction_WP",
-			"Astraeos" => "Astraeos_WP",
-			"Valguero" => "Valguero_WP",
-			"LostColony" or "Lost Colony" => "LostColony_WP",
-			"ClubARK" or "Club ARK" or "BobsMissions" => "BobsMissions_WP",
-			string value when value.EndsWith("_WP", StringComparison.OrdinalIgnoreCase) => value,
-			string value when !string.IsNullOrWhiteSpace(value) => value,
-			_ => "TheIsland_WP"
-		};
 	}
 
 	private static string GetRconPassword(ServerInstance server)
@@ -651,15 +530,4 @@ public class ServerProcessManager : IServerProcessManager
 		return "[" + trimmed.Trim('[', ']') + "]";
 	}
 
-	private static string RemoveManagedLaunchArguments(string launchParameters)
-	{
-		if (string.IsNullOrWhiteSpace(launchParameters))
-		{
-			return string.Empty;
-		}
-		IEnumerable<string> values = from part in launchParameters.Split(' ', StringSplitOptions.RemoveEmptyEntries)
-			where !part.StartsWith("-clusterid=", StringComparison.OrdinalIgnoreCase) && !part.StartsWith("-ClusterDirOverride=", StringComparison.OrdinalIgnoreCase) && !part.StartsWith("-MaxPlayers=", StringComparison.OrdinalIgnoreCase) && !part.Equals("-NoTransferFromFiltering", StringComparison.OrdinalIgnoreCase) && !part.Equals("-NoBattlEye", StringComparison.OrdinalIgnoreCase) && !part.Equals("-NoBattleEye", StringComparison.OrdinalIgnoreCase) && !part.Equals("-log", StringComparison.OrdinalIgnoreCase) && !part.Equals("-NoLogWindow", StringComparison.OrdinalIgnoreCase) && !part.Equals("-stdout", StringComparison.OrdinalIgnoreCase) && !part.Equals("-FullStdOutLogOutput", StringComparison.OrdinalIgnoreCase)
-			select part;
-		return string.Join(' ', values);
-	}
 }

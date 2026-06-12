@@ -26,6 +26,8 @@ public class ServersViewModel : ObservableObject
 
 	private readonly ConsoleViewModel _consoleViewModel;
 
+	private readonly IAsaServerDiscoveryService _asaServerDiscoveryService;
+
 	private readonly AppConfig _appConfig;
 
 	private ServerInstance? _selectedServer;
@@ -83,12 +85,13 @@ public class ServersViewModel : ObservableObject
 
 	private static string DefaultClusterDirectory => DashboardViewModel.DefaultClusterDirectory;
 
-	public ServersViewModel(IServerProcessManager serverProcessManager, IConfigService configService, ILoggingService loggingService, ConsoleViewModel consoleViewModel)
+	public ServersViewModel(IServerProcessManager serverProcessManager, IConfigService configService, ILoggingService loggingService, ConsoleViewModel consoleViewModel, IAsaServerDiscoveryService asaServerDiscoveryService)
 	{
 		_serverProcessManager = serverProcessManager;
 		_configService = configService;
 		_loggingService = loggingService;
 		_consoleViewModel = consoleViewModel;
+		_asaServerDiscoveryService = asaServerDiscoveryService;
 		_appConfig = Task.Run(() => _configService.LoadAsync()).GetAwaiter().GetResult();
 		Task.Run(() => _serverProcessManager.InitializeAsync(_appConfig)).GetAwaiter().GetResult();
 		foreach (ServerInstance server in _appConfig.Servers)
@@ -301,7 +304,13 @@ public class ServersViewModel : ObservableObject
 		{
 			return;
 		}
-		string sourceInstallDirectory = ResolveExistingInstallDirectory(openFolderDialog.FolderName);
+		AsaServerDiscoveryResult sourceDiscovery = _asaServerDiscoveryService.Discover(openFolderDialog.FolderName);
+		if (!sourceDiscovery.IsValidInstall)
+		{
+			MessageBox.Show(string.Join(Environment.NewLine, sourceDiscovery.Errors), "Invalid ASA server folder", MessageBoxButton.OK, MessageBoxImage.Warning);
+			return;
+		}
+		string sourceInstallDirectory = sourceDiscovery.InstallDirectory;
 		if (Servers.Any((ServerInstance x) => !string.IsNullOrWhiteSpace(x.InstallDirectory) && string.Equals(NormalizeDirectoryPath(x.InstallDirectory), NormalizeDirectoryPath(sourceInstallDirectory), StringComparison.OrdinalIgnoreCase)))
 		{
 			MessageBox.Show("That server folder is already in the manager.", "Server already exists", MessageBoxButton.OK, MessageBoxImage.Information);
@@ -322,7 +331,8 @@ public class ServersViewModel : ObservableObject
 			InstallDirectory = installDirectory,
 			MapName = (MapNames.FirstOrDefault() ?? "TheIsland_WP")
 		};
-		SetExecutableNameFromInstallDirectory(serverInstance);
+		AsaServerDiscoveryResult importedDiscovery = _asaServerDiscoveryService.Discover(serverInstance.InstallDirectory);
+		_asaServerDiscoveryService.ApplyToServer(serverInstance, importedDiscovery);
 		NormalizeServerSettings(serverInstance);
 		Servers.Add(serverInstance);
 		_appConfig.Servers.Add(serverInstance);
